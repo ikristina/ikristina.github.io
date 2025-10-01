@@ -1,0 +1,118 @@
+---
+---
+
+<div class="search-container">
+  <input 
+    type="text" 
+    id="search-input" 
+    placeholder="Search posts..." 
+    class="search-input"
+  />
+  <div id="search-results" class="search-results"></div>
+</div>
+
+<script>
+  let searchIndex;
+  let posts = [];
+
+  // Load Lunr.js first, then search index
+  const script = document.createElement('script');
+  script.src = 'https://unpkg.com/lunr/lunr.js';
+  script.onload = () => {
+    // Load search index after Lunr is loaded
+    fetch('/search-index.json')
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to load search index');
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Loaded search index:', data.length, 'posts');
+      posts = data;
+      
+      // Build Lunr index
+      searchIndex = lunr(function () {
+        this.ref('id');
+        this.field('title', { boost: 10 });
+        this.field('description', { boost: 5 });
+        this.field('tags', { boost: 3 });
+        
+        data.forEach(post => {
+          this.add(post);
+        });
+      });
+      console.log('Search index built successfully');
+    })
+    .catch(error => {
+      console.error('Failed to load search index:', error);
+    });
+  };
+  document.head.appendChild(script);
+
+  // Search functionality
+  const searchInput = document.getElementById('search-input');
+  const searchResults = document.getElementById('search-results');
+
+  searchInput.addEventListener('input', (e) => {
+    const query = e.target.value.trim();
+    
+    if (query.length < 2) {
+      searchResults.innerHTML = '';
+      searchResults.style.display = 'none';
+      return;
+    }
+
+    if (!searchIndex) return;
+
+    try {
+      const results = searchIndex.search(query);
+      displayResults(results);
+    } catch (error) {
+      // Handle search errors gracefully
+      searchResults.innerHTML = '';
+      searchResults.style.display = 'none';
+    }
+  });
+
+  // Handle Enter key to go to search results page
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const query = e.target.value.trim();
+      if (query) {
+        window.location.href = `/search?q=${encodeURIComponent(query)}`;
+      }
+    }
+  });
+
+  function displayResults(results) {
+    if (results.length === 0) {
+      searchResults.innerHTML = '<div class="no-results">No posts found</div>';
+      searchResults.style.display = 'block';
+      return;
+    }
+
+    const html = results.slice(0, 5).map(result => {
+      const post = posts.find(p => p.id === result.ref);
+      return `
+        <div class="search-result">
+          <a href="${post.url}" class="result-title">${post.title}</a>
+          <p class="result-description">${post.description}</p>
+          <div class="result-meta">
+            <span class="result-date">${new Date(post.date).toLocaleDateString()}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    searchResults.innerHTML = html;
+    searchResults.style.display = 'block';
+  }
+
+  // Hide results when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-container')) {
+      searchResults.style.display = 'none';
+    }
+  });
+</script>

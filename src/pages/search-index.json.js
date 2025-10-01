@@ -1,0 +1,18 @@
+export async function get() {
+  const posts = await import.meta.glob('./blog/*.md', { eager: true });
+  
+  const searchIndex = Object.values(posts)
+    .filter(post => new Date(post.frontmatter.date) <= new Date())
+    .map(post => ({
+      id: post.url,
+      title: post.frontmatter.title,
+      description: post.frontmatter.description,
+      tags: post.frontmatter.tags?.join(' ') || '',
+      date: post.frontmatter.date,
+      url: post.url
+    }));
+
+  return {
+    body: JSON.stringify(searchIndex)
+  };
+}

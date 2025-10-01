@@ -1,5 +1,7 @@
 ---
 import '../../styles/global.css';
+import Header from '../../components/Header.astro';
+import Sidebar from '../../components/Sidebar.astro';
 
 export async function getStaticPaths() {
   const allPosts = await Astro.glob('../blog/*.md');
@@ -21,12 +23,13 @@ export async function getStaticPaths() {
         const postDateOnly = new Date(post.frontmatter.date).toISOString().split('T')[0];
         return postDateOnly === date;
       }),
-      date
+      date,
+      allPosts: posts
     }
   }));
 }
 
-const { posts, date } = Astro.props;
+const { posts, date, allPosts } = Astro.props;
 const formattedDate = new Date(date).toLocaleDateString('en-US', { 
   year: 'numeric', 
   month: 'long', 
@@ -44,15 +47,12 @@ const formattedDate = new Date(date).toLocaleDateString('en-US', {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Serif+Pro:ital,wght@0,400;0,600;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
-
   </head>
   <body>
-    <div class="main-content">
-      <main>
-        <a href="/" class="blog-header">
-          <img src="/logo.png" alt="Logo" class="blog-logo" />
-          <h1>Threads of Thought</h1>
-        </a>
+    <Header />
+    <div class="content-wrapper">
+      <div class="main-content">
+        <main>
         
         <h2>Posts from {formattedDate}</h2>
         
@@ -72,6 +72,8 @@ const formattedDate = new Date(date).toLocaleDateString('en-US', {
           ))}
         </ul>
       </main>
+      </div>
+      <Sidebar posts={allPosts} />
     </div>
   </body>
 </html>

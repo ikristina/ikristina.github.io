@@ -5,13 +5,27 @@ A personal blog about Go programming, software development, and random thoughts.
 ## 🚀 Features
 
 - **Responsive Design**: Clean, readable layout that works on all devices
+- **Client-Side Search**: Powered by [Lunr.js](https://lunrjs.com/) with dropdown results and dedicated search page
 - **Pagination**: Posts organized with 8 posts per page
 - **Interactive Calendar**: Click on dates to see posts from that day
 - **Tag System**: Browse posts by topic with tag cloud
 - **RSS Feed**: Subscribe at `/rss.xml`
 - **Image Popups**: Click images for full-size view
 - **Post Navigation**: Previous/next links between posts
+- **Table of Contents**: Optional TOC generation for long posts
+- **Code Syntax Highlighting**: Prism.js with copy buttons and language labels
 - **Search Engine Friendly**: Sitemap and proper meta tags
+- **Future Post Support**: Posts with future dates are hidden until published
+
+## 📚 Technology Stack
+
+- **Framework**: [Astro](https://astro.build) - Static site generator
+- **Styling**: Vanilla CSS with custom design system
+- **Search**: [Lunr.js](https://lunrjs.com/) - Client-side full-text search
+- **Syntax Highlighting**: [Prism.js](https://prismjs.com/) with Tomorrow Night theme
+- **Fonts**: Google Fonts (Courier Prime, Libre Baskerville, Source Serif Pro)
+- **Deployment**: GitHub Pages with GitHub Actions
+- **Content**: Markdown with frontmatter
 
 ## 🛠️ Development
 
@@ -45,6 +59,15 @@ showToc: true
 
 Your post content here...
 ```
+
+## 🔍 Search
+
+The blog includes client-side search functionality:
+
+- **Dropdown Search**: Type in the search box to see instant results
+- **Search Page**: Press Enter to go to `/search` for full results
+- **Search Index**: Automatically generated from published posts
+- **Search Fields**: Searches titles, descriptions, and tags
 
 ## 🚀 Deployment
 

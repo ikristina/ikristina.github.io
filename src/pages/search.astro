@@ -1,0 +1,154 @@
+---
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Sidebar from '../components/Sidebar.astro';
+
+const url = new URL(Astro.request.url);
+const query = url.searchParams.get('q') || '';
+
+const allPosts = await Astro.glob('./blog/*.md');
+const now = new Date();
+const posts = allPosts.filter(post => new Date(post.frontmatter.date) <= now);
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/png" href="https://avatars.githubusercontent.com/u/10219431" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Search Results{query ? ` for "${query}"` : ''}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Serif+Pro:ital,wght@0,400;0,600;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <Header />
+    <div class="content-wrapper">
+      <div class="main-content">
+        <main>
+          <h1>Search Results</h1>
+          {query && <p class="search-query">Results for: <strong>"{query}"</strong></p>}
+          
+          <div id="search-results-page" class="search-results-page">
+            <div class="loading">Loading...</div>
+          </div>
+          
+          <footer>
+            <p>© 2025 Threads of Thought. Built with <a href="https://astro.build">Astro</a>.</p>
+          </footer>
+        </main>
+      </div>
+      <Sidebar posts={posts} />
+    </div>
+
+    <script>
+      const urlParams = new URLSearchParams(window.location.search);
+      const query = urlParams.get('q') || '';
+      const resultsContainer = document.getElementById('search-results-page');
+      
+      if (!query) {
+        resultsContainer.innerHTML = '<p>Enter a search term to find posts.</p>';
+      } else {
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/lunr/lunr.js';
+        script.onload = () => {
+          fetch('/search-index.json')
+            .then(response => response.json())
+            .then(posts => {
+              const searchIndex = lunr(function () {
+                this.ref('id');
+                this.field('title', { boost: 10 });
+                this.field('description', { boost: 5 });
+                this.field('tags', { boost: 3 });
+                
+                posts.forEach(post => this.add(post));
+              });
+              
+              const results = searchIndex.search(query);
+              displayResults(results, posts);
+            })
+            .catch(() => {
+              resultsContainer.innerHTML = '<p>Error loading search results.</p>';
+            });
+        };
+        document.head.appendChild(script);
+      }
+      
+      function displayResults(results, posts) {
+        if (results.length === 0) {
+          resultsContainer.innerHTML = '<p>No posts found matching your search.</p>';
+          return;
+        }
+        
+        const html = results.map(result => {
+          const post = posts.find(p => p.id === result.ref);
+          return (
+            '<article class="search-result-item">' +
+              '<h2><a href="' + post.url + '">' + post.title + '</a></h2>' +
+              '<p class="result-description">' + post.description + '</p>' +
+              '<div class="result-meta">' +
+                '<span class="result-date">' + new Date(post.date).toLocaleDateString() + '</span>' +
+                (post.tags ? '<span class="result-tags">' + post.tags + '</span>' : '') +
+              '</div>' +
+            '</article>'
+          );
+        }).join('');
+        
+        resultsContainer.innerHTML = html;
+      }
+    </script>
+  </body>
+</html>
+
+<style>
+  .search-query {
+    margin-bottom: 2rem;
+    color: #666;
+  }
+  
+  .search-results-page {
+    min-height: 200px;
+  }
+  
+  .search-result-item {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .search-result-item:last-child {
+    border-bottom: none;
+  }
+  
+  .search-result-item h2 {
+    margin: 0 0 0.5rem 0;
+  }
+  
+  .search-result-item h2 a {
+    color: #333;
+    text-decoration: none;
+  }
+  
+  .search-result-item h2 a:hover {
+    color: #0066cc;
+  }
+  
+  .result-description {
+    margin: 0.5rem 0;
+    color: #666;
+  }
+  
+  .result-meta {
+    font-size: 0.9rem;
+    color: #888;
+  }
+  
+  .result-tags {
+    margin-left: 1rem;
+  }
+  
+  .loading {
+    color: #666;
+    font-style: italic;
+  }
+</style>
