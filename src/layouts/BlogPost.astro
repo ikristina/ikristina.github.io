@@ -10,9 +10,31 @@ export interface Props {
 import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Sidebar from '../components/Sidebar.astro';
+import Comments from '../components/Comments.astro';
+import { calculateReadingTime } from '../utils/readingTime.js';
 
 const { frontmatter } = Astro.props;
-const { title, date, tags, showToc } = frontmatter || {};
+const { title, date, tags, showToc, description, image } = frontmatter || {};
+
+// Calculate reading time
+const content = await Astro.slots.render('default');
+const readingTime = calculateReadingTime(content);
+
+// SEO data
+const siteUrl = 'https://ikristina.github.io';
+const postUrl = `${siteUrl}${Astro.url.pathname}`;
+
+// Extract first image from content if no image provided
+let ogImage = image ? `${siteUrl}${image}` : null;
+if (!ogImage) {
+  const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
+  if (imgMatch) {
+    const imgSrc = imgMatch[1];
+    ogImage = imgSrc.startsWith('http') ? imgSrc : `${siteUrl}${imgSrc}`;
+  } else {
+    ogImage = `${siteUrl}/og-default.png`;
+  }
+}
 
 // Get all posts for calendar and tag cloud
 const allPosts = await Astro.glob('../pages/blog/*.md');
@@ -33,6 +55,23 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
+    <meta name="description" content={description || `Read ${title} on Threads of Thought`} />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content={postUrl} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description || `Read ${title} on Threads of Thought`} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:site_name" content="Threads of Thought" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content={postUrl} />
+    <meta property="twitter:title" content={title} />
+    <meta property="twitter:description" content={description || `Read ${title} on Threads of Thought`} />
+    <meta property="twitter:image" content={ogImage} />
+    
     {showToc && <meta name="show-toc" content="true" />}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -47,7 +86,7 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
         <div class="post-header">
           <h1>{title}</h1>
           <div class="post-meta">
-            <p><em>{date}</em></p>
+            <p><em>{date}</em> <span class="reading-time">📖 {readingTime} min read</span></p>
             <div class="post-tags">
               {tags?.map((tag) => (
                 <a href={`/tags/${tag}`} class="tag">{tag}</a>
@@ -74,6 +113,8 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
             </a>
           )}
         </nav>
+        
+        <Comments />
         
         <footer>
           <p>© 2025 Threads of Thought. Built with <a href="https://astro.build">Astro</a>.</p>
@@ -112,9 +153,23 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
           copy.textContent = 'Copy';
           copy.style.cssText = 'background: none; border: 1px solid #555; color: #9ca3af; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 11px;';
           copy.onclick = function() {
-            navigator.clipboard.writeText(pre.querySelector('code').textContent);
-            copy.textContent = 'Copied!';
-            setTimeout(() => copy.textContent = 'Copy', 1000);
+            const text = pre.querySelector('code').textContent;
+            if (navigator.clipboard) {
+              navigator.clipboard.writeText(text).then(() => {
+                copy.textContent = 'Copied!';
+                setTimeout(() => copy.textContent = 'Copy', 1000);
+              });
+            } else {
+              // Fallback for older browsers
+              const textarea = document.createElement('textarea');
+              textarea.value = text;
+              document.body.appendChild(textarea);
+              textarea.select();
+              document.execCommand('copy');
+              document.body.removeChild(textarea);
+              copy.textContent = 'Copied!';
+              setTimeout(() => copy.textContent = 'Copy', 1000);
+            }
           };
           
           header.appendChild(lang);

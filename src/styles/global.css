@@ -562,6 +562,12 @@ article ol,
   margin-left: 0 !important;
 }
 
+.reading-time {
+  color: #666;
+  margin-left: 1rem;
+  font-size: 0.9rem;
+}
+
 
 
 /* Nested lists */

@@ -14,6 +14,8 @@ A personal blog about Go programming, software development, and random thoughts.
 - **Post Navigation**: Previous/next links between posts
 - **Table of Contents**: Optional TOC generation for long posts
 - **Code Syntax Highlighting**: Prism.js with copy buttons and language labels
+- **Comments System**: Powered by [Giscus](https://giscus.app/) using GitHub Discussions
+- **Social Media SEO**: Open Graph and Twitter Card meta tags with automatic first image extraction
 - **Search Engine Friendly**: Sitemap and proper meta tags
 - **Future Post Support**: Posts with future dates are hidden until published
 
@@ -23,6 +25,7 @@ A personal blog about Go programming, software development, and random thoughts.
 - **Styling**: Vanilla CSS with custom design system
 - **Search**: [Lunr.js](https://lunrjs.com/) - Client-side full-text search
 - **Syntax Highlighting**: [Prism.js](https://prismjs.com/) with Tomorrow Night theme
+- **Comments**: [Giscus](https://giscus.app/) - GitHub Discussions integration
 - **Fonts**: Google Fonts (Courier Prime, Libre Baskerville, Source Serif Pro)
 - **Deployment**: GitHub Pages with GitHub Actions
 - **Content**: Markdown with frontmatter
