@@ -1,4 +1,6 @@
 ---
+import '../../styles/global.css';
+
 export async function getStaticPaths() {
   const allPosts = await Astro.glob('../blog/*.md');
   const posts = allPosts.filter(post => new Date(post.frontmatter.date) <= new Date());
@@ -32,7 +34,7 @@ const { posts, tag } = Astro.props;
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Serif+Pro:ital,wght@0,400;0,600;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/src/styles/global.css" />
+
   </head>
   <body>
     <div class="main-content">

@@ -1,4 +1,6 @@
 ---
+import '../styles/global.css';
+
 const allPosts = await Astro.glob('./blog/*.md');
 
 // Filter out future posts and sort newest to oldest
@@ -57,7 +59,7 @@ const postDates = publishedPosts.map(p => p.frontmatter.date).filter(Boolean);
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Serif+Pro:ital,wght@0,400;0,600;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
-		<link rel="stylesheet" href="/src/styles/global.css" />
+
 		<link rel="alternate" type="application/rss+xml" title="Threads of Thought RSS" href="/rss.xml" />
 	</head>
 	<body>
