@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('pre').forEach(function(pre, index) {
+          console.log('Pre element', index, ':', pre.className);
+          const code = pre.querySelector('code');
+          if (code) {
+            console.log('Code element', index, ':', code.className);
+          }
+        });
+      });
+    </script>
+</head>
+<body>
+    <pre><code class="language-go">package main</code></pre>
+</body>
+</html>

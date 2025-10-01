@@ -1,0 +1,791 @@
+body {
+  font-family: 'Courier Prime', monospace;
+  line-height: 1.6;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  color: #2d3748;
+  display: flex;
+  gap: 3rem;
+  text-align: justify;
+  hyphens: auto;
+  word-break: break-word;
+  background: #fafafa;
+}
+
+.main-content {
+  flex: 3;
+}
+
+.sidebar {
+  flex: 1;
+  min-width: 280px;
+  margin-top: 4rem;
+}
+
+@media (max-width: 768px) {
+  body {
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .sidebar {
+    min-width: auto;
+  }
+}
+
+nav {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.about {
+  margin-bottom: 2rem;
+}
+
+.about h3 {
+  text-align: center;
+}
+
+.about p {
+  text-align: justify;
+  max-width: 250px;
+  margin: 0 auto;
+  text-indent: 1rem;
+}
+
+.tag-cloud h4 {
+  text-align: center;
+}
+
+.about .profile-pic {
+  display: block;
+  margin: 0 auto 1rem;
+}
+
+.profile-pic {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 1rem;
+  border-radius: 8px;
+  filter: grayscale(100%);
+  transition: filter 0.3s ease;
+  cursor: pointer;
+}
+
+.profile-pic:hover {
+  filter: grayscale(0%);
+}
+
+.sidebar:hover .profile-pic {
+  filter: grayscale(0%);
+}
+
+.blog-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.blog-header:hover {
+  opacity: 0.8;
+}
+
+.blog-header {
+  border-bottom: 2px solid #4a5568;
+  padding-bottom: 1rem;
+  margin-bottom: 2rem;
+}
+
+.blog-header h1::before {
+  content: '> ';
+  color: #38a169;
+  font-weight: normal;
+}
+
+.blog-logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  filter: grayscale(100%);
+  transition: filter 0.3s ease;
+}
+
+.blog-logo:hover {
+  filter: grayscale(0%);
+}
+
+
+
+.calendar {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #f9f9f9;
+  border-radius: 6px;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-top: 0.5rem;
+}
+
+.calendar-day {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.calendar-day.has-post {
+  cursor: pointer;
+}
+
+.calendar-day:not(:empty):not(.text-gray-400):hover {
+  background: #e2e8f0;
+  cursor: pointer;
+}
+
+.calendar-day.text-gray-400:hover {
+  background: transparent !important;
+  cursor: default !important;
+}
+
+.calendar-day.has-post:hover {
+  background: #38a169;
+  color: white;
+}
+
+.calendar-day.today {
+  background: #38a169;
+  color: white;
+}
+
+.calendar-day.has-post:not(.text-gray-400) {
+  border: 2px solid #38a169;
+  font-weight: bold;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.calendar-nav {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+}
+
+.calendar-nav:hover {
+  background: #eee;
+}
+
+.year-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.year-nav {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.2rem 0.3rem;
+  border-radius: 3px;
+}
+
+.year-nav:hover {
+  background: #eee;
+}
+
+.tag-cloud {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #f9f9f9;
+  border-radius: 6px;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.tag-item {
+  color: #666;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.tag-item:hover {
+  background: #38a169;
+  color: white;
+}
+
+/* Admonitions */
+.admonition {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border-radius: 6px;
+  border-left: 4px solid;
+}
+
+.admonition-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.admonition-icon {
+  font-size: 1.1rem;
+}
+
+.admonition.info {
+  background: #f0f9ff;
+  border-left-color: #0ea5e9;
+  color: #0c4a6e;
+}
+
+.admonition.warning {
+  background: #fffbeb;
+  border-left-color: #f59e0b;
+  color: #92400e;
+}
+
+.admonition.danger {
+  background: #fef2f2;
+  border-left-color: #ef4444;
+  color: #991b1b;
+}
+
+.admonition.quote {
+  background: #f8fafc;
+  border-left-color: #64748b;
+  color: #334155;
+}
+
+.admonition.idea {
+  background: #f0fdf4;
+  border-left-color: #22c55e;
+  color: #166534;
+}
+
+/* Code blocks */
+.code-block {
+  margin: 1.5rem 0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1e1e1e;
+}
+
+.code-header {
+  background: #2d2d2d;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #404040;
+}
+
+.code-language {
+  color: #9ca3af;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+pre {
+  background: #1e1e1e !important;
+  color: #d4d4d4 !important;
+  padding: 1rem;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  border-radius: 6px;
+  position: relative;
+}
+
+code {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9rem;
+}
+
+pre code {
+  background: none !important;
+  padding: 0;
+  color: #d4d4d4 !important;
+}
+
+/* Language labels using CSS - add these for each language you use */
+pre[style*="--shiki-light"][style*="bash"]::before,
+pre:has(code:contains("go version"))::before,
+pre:has(code:contains("brew install"))::before,
+pre:has(code:contains("sudo"))::before {
+  content: "Bash";
+  position: absolute;
+  top: 0.5rem;
+  left: 1rem;
+  font-size: 0.7rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  font-weight: 500;
+  z-index: 1;
+  background: rgba(45, 45, 45, 0.8);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+pre:has(code:contains("return {"))::before,
+pre:has(code:contains("lua"))::before {
+  content: "Lua";
+  position: absolute;
+  top: 0.5rem;
+  left: 1rem;
+  font-size: 0.7rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  font-weight: 500;
+  z-index: 1;
+  background: rgba(45, 45, 45, 0.8);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* Inline code */
+p code,
+li code {
+  background: #f1f5f9;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  color: #e11d48;
+}
+
+/* Images */
+
+.image-figure {
+  margin: 2rem 0;
+  text-align: center;
+}
+
+.image-figure img {
+  width: 80%;
+  height: auto;
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.image-figure figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
+  font-style: italic;
+  max-width: 80%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* For regular images with captions */
+img+em {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
+  font-style: italic;
+  text-align: center;
+  max-width: 80%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Markdown images */
+article img,
+.blog-content img {
+  width: 80%;
+  height: auto;
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  display: block;
+  margin: 2rem auto;
+}
+
+.social-links {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.social-links a {
+  color: #666;
+  text-decoration: none;
+  font-size: 1.2rem;
+}
+
+.social-links a:hover {
+  color: #38a169;
+}
+
+nav a {
+  color: #666;
+  text-decoration: none;
+}
+
+nav a:hover {
+  color: #000;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Courier Prime', monospace;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #222;
+}
+
+h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+h2 {
+  font-size: 2rem;
+  margin: 1.5rem 0 1rem 0;
+}
+
+h2.post-title {
+  margin: 1.5rem 0 0.5rem 0;
+  order: 1;
+}
+
+.blog-content>p {
+  order: 2;
+}
+
+
+
+h3 {
+  font-size: 1.5rem;
+  margin: 1.2rem 0 0.8rem 0;
+}
+
+.about h3::before {
+  content: '// ';
+  color: #38a169;
+  font-weight: normal;
+}
+
+.calendar h4::before {
+  content: '> ';
+  color: #38a169;
+  font-weight: normal;
+}
+
+.tag-cloud h4::before {
+  content: '/* ';
+  color: #38a169;
+  font-weight: normal;
+}
+
+.tag-cloud h4::after {
+  content: ' */';
+  color: #38a169;
+  font-weight: normal;
+}
+
+h4 {
+  font-size: 1.2rem;
+  margin: 1rem 0 0.5rem 0;
+}
+
+/* Blog post lists */
+main ul {
+  list-style: none;
+  padding: 0;
+  margin-top: 2rem;
+}
+
+/* Content lists */
+article ul,
+.blog-content ul {
+  list-style: disc;
+  padding-left: 2rem;
+  margin: 1rem 0;
+}
+
+article ol,
+.blog-content ol {
+  list-style: decimal;
+  padding-left: 2rem;
+  margin: 1rem 0;
+}
+
+
+
+.post-tags {
+  order: 3;
+}
+
+.post-tags .tag {
+  margin-right: 0.75rem !important;
+  margin-bottom: 0.5rem !important;
+  margin-top: 0 !important;
+  margin-left: 0 !important;
+}
+
+
+
+/* Nested lists */
+article ul ul,
+.blog-content ul ul {
+  list-style: circle;
+  margin: 0.5rem 0;
+}
+
+article ul ul ul,
+.blog-content ul ul ul {
+  list-style: square;
+}
+
+article ol ol,
+.blog-content ol ol {
+  list-style: lower-alpha;
+  margin: 0.5rem 0;
+}
+
+article ol ol ol,
+.blog-content ol ol ol {
+  list-style: lower-roman;
+}
+
+/* List items */
+article li,
+.blog-content li {
+  margin: 0.3rem 0;
+  line-height: 1.6;
+}
+
+/* Blog post list items */
+main>ul>li {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+main>ul>li:last-child {
+  border-bottom: none;
+}
+
+main>ul>li>a {
+  color: #2d3748;
+  text-decoration: none;
+  font-family: 'Courier Prime', monospace;
+  font-weight: 700;
+  font-size: 1.3rem;
+  line-height: 1.4;
+  display: block;
+  margin-bottom: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  margin: -0.2rem -0.5rem 0.3rem -0.5rem;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+main>ul>li>a::before {
+  content: '$ ';
+  color: #38a169;
+  font-weight: normal;
+}
+
+main>ul>li>a:hover {
+  color: #1a202c;
+  background: #e2e8f0;
+  border-radius: 3px;
+}
+
+/* Regular content links */
+article a,
+.blog-content a {
+  color: #38a169;
+  text-decoration: underline;
+}
+
+article a:hover,
+.blog-content a:hover {
+  color: #2f855a;
+}
+
+li .date {
+  margin: 0.2rem 0 0 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+li .description {
+  margin: 0.5rem 0;
+  color: #555;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tags {
+  margin: 0.5rem 0;
+  margin-left: 0.5rem;
+}
+
+.tag {
+  display: inline-block;
+  background: #718096;
+  color: #f7fafc;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  margin-right: 0.75rem;
+  margin-bottom: 0.5rem;
+  font-family: 'Courier Prime', monospace;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.tag:hover {
+  background: #38a169;
+  color: white;
+}
+
+.tag::before {
+  content: '#';
+  color: #38a169;
+}
+
+.read-more {
+  color: #666;
+  text-decoration: none;
+  font-size: 0.9rem;
+  display: inline-block;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.read-more:hover {
+  color: #1a202c;
+  background: #e2e8f0;
+}
+
+/* Post navigation */
+.post-nav {
+  display: flex;
+  justify-content: space-between;
+  margin: 3rem 0 2rem 0;
+  gap: 1rem;
+}
+
+.nav-link {
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: #666;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  max-width: 45%;
+}
+
+.nav-link:hover {
+  border-color: #38a169;
+  background: #f7fafc;
+}
+
+.nav-link.next {
+  text-align: right;
+  margin-left: auto;
+}
+
+.nav-title {
+  font-weight: 600;
+  color: #2d3748;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+/* Footer */
+footer {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e2e8f0;
+  text-align: center;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+footer a {
+  color: #38a169;
+  text-decoration: none;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 2rem 0;
+  padding: 1rem 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.page-link {
+  color: #38a169;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.page-link:hover {
+  border-color: #38a169;
+  background: #f7fafc;
+}
+
+.page-info {
+  color: #666;
+  font-size: 0.9rem;
+}

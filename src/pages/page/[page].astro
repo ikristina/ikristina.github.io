@@ -1,29 +1,38 @@
 ---
-const allPosts = await Astro.glob('./blog/*.md');
+export async function getStaticPaths() {
+  const allPosts = await Astro.glob('../blog/*.md');
+  const now = new Date();
+  const publishedPosts = allPosts.filter(post => new Date(post.frontmatter.date) <= now);
+  const sortedPosts = publishedPosts.sort((a, b) => new Date(b.frontmatter.date) - new Date(a.frontmatter.date));
+  
+  const postsPerPage = 8;
+  const totalPages = Math.ceil(sortedPosts.length / postsPerPage);
+  
+  return Array.from({ length: totalPages }, (_, i) => ({
+    params: { page: String(i + 1) },
+    props: { 
+      posts: sortedPosts.slice(i * postsPerPage, (i + 1) * postsPerPage),
+      currentPage: i + 1,
+      totalPages,
+      allPosts: sortedPosts
+    }
+  }));
+}
 
-// Filter out future posts and sort newest to oldest
-const now = new Date();
-const publishedPosts = allPosts.filter(post => new Date(post.frontmatter.date) <= now);
-const sortedPosts = publishedPosts.sort((a, b) => new Date(b.frontmatter.date) - new Date(a.frontmatter.date));
-
-// Show first 8 posts on homepage
-const postsPerPage = 8;
-const posts = sortedPosts.slice(0, postsPerPage);
-const totalPages = Math.ceil(sortedPosts.length / postsPerPage);
+const { posts, currentPage, totalPages, allPosts } = Astro.props;
 
 // Generate calendar for current month
 const today = new Date();
 const currentMonth = today.getMonth();
 const currentYear = today.getFullYear();
 const firstDay = new Date(currentYear, currentMonth, 1);
-const lastDay = new Date(currentYear, currentMonth + 1, 0);
 const startDate = new Date(firstDay);
 startDate.setDate(startDate.getDate() - firstDay.getDay());
 
 const calendarDays = [];
 for (let d = new Date(startDate); calendarDays.length < 42; d.setDate(d.getDate() + 1)) {
   const dateStr = d.toISOString().split('T')[0];
-  const hasPost = publishedPosts.some(post => {
+  const hasPost = allPosts.some(post => {
     if (!post.frontmatter.date) return false;
     const postDate = new Date(post.frontmatter.date);
     if (isNaN(postDate.getTime())) return false;
@@ -34,17 +43,16 @@ for (let d = new Date(startDate); calendarDays.length < 42; d.setDate(d.getDate(
   calendarDays.push({ date: d.getDate(), hasPost, isToday, isCurrentMonth, fullDate: dateStr });
 }
 
-// Generate tag cloud from published posts
+// Generate tag cloud from all posts
 const tagCounts = {};
-publishedPosts.forEach(post => {
+allPosts.forEach(post => {
   post.frontmatter.tags?.forEach(tag => {
     tagCounts[tag] = (tagCounts[tag] || 0) + 1;
   });
 });
 const tags = Object.entries(tagCounts).map(([tag, count]) => ({ tag, count }));
 
-// Create post dates array for calendar script
-const postDates = publishedPosts.map(p => p.frontmatter.date).filter(Boolean);
+const postDates = allPosts.map(p => p.frontmatter.date).filter(Boolean);
 ---
 
 <html lang="en">
@@ -53,12 +61,11 @@ const postDates = publishedPosts.map(p => p.frontmatter.date).filter(Boolean);
 		<link rel="icon" type="image/png" href="https://avatars.githubusercontent.com/u/10219431" />
 		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Blog</title>
+		<title>Blog - Page {currentPage}</title>
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Serif+Pro:ital,wght@0,400;0,600;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
 		<link rel="stylesheet" href="/src/styles/global.css" />
-		<link rel="alternate" type="application/rss+xml" title="Threads of Thought RSS" href="/rss.xml" />
 	</head>
 	<body>
 		<div class="main-content">
@@ -86,8 +93,13 @@ const postDates = publishedPosts.map(p => p.frontmatter.date).filter(Boolean);
 				
 				{totalPages > 1 && (
 					<nav class="pagination">
-						<span class="page-info">Page 1 of {totalPages}</span>
-						<a href="/page/2" class="page-link">Next →</a>
+						{currentPage > 1 && (
+							<a href={currentPage === 2 ? '/' : `/page/${currentPage - 1}`} class="page-link">← Previous</a>
+						)}
+						<span class="page-info">Page {currentPage} of {totalPages}</span>
+						{currentPage < totalPages && (
+							<a href={`/page/${currentPage + 1}`} class="page-link">Next →</a>
+						)}
 					</nav>
 				)}
 				
@@ -117,11 +129,6 @@ const postDates = publishedPosts.map(p => p.frontmatter.date).filter(Boolean);
 							<path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
 						</svg>
 					</a>
-					<a href="/rss.xml" title="RSS Feed">
-						<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-							<path d="M6.503 20.752c0 1.794-1.456 3.248-3.251 3.248S0 22.546 0 20.752s1.456-3.248 3.252-3.248 3.251 1.454 3.251 3.248zM1.677 6.082v4.15c6.988 0 12.65 5.662 12.65 12.65h4.15c0-9.271-7.529-16.8-16.8-16.8zM1.677.014v4.15C14.44 4.164 24 13.724 24 26.487h4.15C28.15 11.952 16.212.014 1.677.014z"/>
-						</svg>
-					</a>
 				</div>
 				<div class="calendar">
 					<div class="calendar-header">
@@ -147,7 +154,6 @@ const postDates = publishedPosts.map(p => p.frontmatter.date).filter(Boolean);
 							</div>
 						))}
 					</div>
-
 				</div>
 				<div class="tag-cloud">
 					<h4>Tags</h4>
@@ -221,18 +227,16 @@ const postDates = publishedPosts.map(p => p.frontmatter.date).filter(Boolean);
 				updateCalendar();
 			});
 
-			// Add click handlers for calendar days
 			document.addEventListener('click', (e) => {
-				const target = e.target.closest('.calendar-day');
-				if (target && target.classList.contains('has-post') && target.textContent.trim() !== '') {
-					const year = calendarYear;
-					const month = calendarMonth;
-					const day = parseInt(target.textContent);
-					const date = new Date(year, month, day).toISOString().split('T')[0];
-					window.location.href = `/date/${date}`;
+				if (e.target.classList.contains('calendar-day') && 
+					e.target.classList.contains('has-post') && 
+					e.target.textContent.trim() !== '') {
+					const date = e.target.getAttribute('data-date');
+					if (date) {
+						window.location.href = `/date/${date}`;
+					}
 				}
 			});
-
 		</script>
 	</body>
 </html>

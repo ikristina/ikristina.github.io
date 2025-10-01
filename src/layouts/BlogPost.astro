@@ -1,0 +1,350 @@
+---
+export interface Props {
+  frontmatter: {
+    title: string;
+    date: string;
+    tags?: string[];
+  };
+}
+
+const { frontmatter } = Astro.props;
+const { title, date, tags, showToc } = frontmatter || {};
+
+// Get all posts for calendar and tag cloud
+const allPosts = await Astro.glob('../pages/blog/*.md');
+const now = new Date();
+const posts = allPosts.filter(post => new Date(post.frontmatter.date) <= now);
+
+// Sort posts by date for navigation
+const sortedPosts = posts.sort((a, b) => new Date(b.frontmatter.date) - new Date(a.frontmatter.date));
+const currentIndex = sortedPosts.findIndex(post => post.frontmatter.title === title);
+const prevPost = currentIndex < sortedPosts.length - 1 ? sortedPosts[currentIndex + 1] : null;
+const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
+
+// Generate calendar for current month
+const today = new Date();
+const currentMonth = today.getMonth();
+const currentYear = today.getFullYear();
+const firstDay = new Date(currentYear, currentMonth, 1);
+const startDate = new Date(firstDay);
+startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+const calendarDays = [];
+for (let d = new Date(startDate); calendarDays.length < 42; d.setDate(d.getDate() + 1)) {
+  const dateStr = d.toISOString().split('T')[0];
+  const hasPost = posts.some(post => {
+    if (!post.frontmatter.date) return false;
+    const postDate = new Date(post.frontmatter.date);
+    if (isNaN(postDate.getTime())) return false;
+    return postDate.toISOString().split('T')[0] === dateStr;
+  });
+  const isToday = d.toDateString() === today.toDateString();
+  const isCurrentMonth = d.getMonth() === currentMonth;
+  calendarDays.push({ date: d.getDate(), hasPost, isToday, isCurrentMonth });
+}
+
+// Generate tag cloud
+const tagCounts = {};
+posts.forEach(post => {
+  post.frontmatter.tags?.forEach(tag => {
+    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+  });
+});
+const allTags = Object.entries(tagCounts).map(([tag, count]) => ({ tag, count }));
+
+// Create post dates array for calendar script
+const postDates = posts.map(p => p.frontmatter.date).filter(Boolean);
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/png" href="https://avatars.githubusercontent.com/u/10219431" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    {showToc && <meta name="show-toc" content="true" />}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Serif+Pro:ital,wght@0,400;0,600;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <link rel="stylesheet" href="/src/styles/global.css" />
+
+  </head>
+  <body>
+    <div class="main-content">
+      <main>
+        <a href="/" class="blog-header">
+          <img src="/logo.png" alt="Logo" class="blog-logo" />
+          <h1>Threads of Thought</h1>
+        </a>
+        <div class="post-header">
+          <h1>{title}</h1>
+          <div class="post-meta">
+            <p><em>{date}</em></p>
+            <div class="post-tags">
+              {tags?.map((tag) => (
+                <a href={`/tags/${tag}`} class="tag">{tag}</a>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div id="toc" class="toc"></div>
+        <article class="blog-content">
+          <slot />
+        </article>
+        
+        <nav class="post-nav">
+          {prevPost && (
+            <a href={prevPost.url} class="nav-link prev">
+              <span>← Previous</span>
+              <span class="nav-title">{prevPost.frontmatter.title}</span>
+            </a>
+          )}
+          {nextPost && (
+            <a href={nextPost.url} class="nav-link next">
+              <span>Next →</span>
+              <span class="nav-title">{nextPost.frontmatter.title}</span>
+            </a>
+          )}
+        </nav>
+        
+        <footer>
+          <p>© 2025 Threads of Thought. Built with <a href="https://astro.build">Astro</a>.</p>
+        </footer>
+      </main>
+    </div>
+    <aside class="sidebar">
+      <div class="about">
+        <img src="https://avatars.githubusercontent.com/u/10219431" alt="Profile" class="profile-pic" />
+        <h3>About Me</h3>
+        <p>I'm a software developer, mostly working with Go. I spend my free time reading, learning random things, and watching horror movies. I collect useless knowledge like other people collect stamps and constantly forget what I was supposed to be doing (and where did my coffee cup go?). My brain works in chaos, jumping between ideas for new hobbies and seeking new learning resources, until something clicks.</p>
+        <div class="social-links">
+          <a href="https://www.linkedin.com/in/i-kristina/" title="LinkedIn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+          </a>
+          <a href="https://bsky.app/profile/ikristina.bsky.social" title="Bluesky">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.08 0 3.768c0 .69.378 5.65.624 6.479.815 2.736 3.713 3.66 6.383 3.364.136-.02.275-.039.415-.056-.138.018-.276.037-.414.056-2.67-.296-5.568.628-6.383 3.364C.378 17.902 0 22.862 0 23.55c0 .688.139 1.86.902 2.203.659.299 1.664.621 4.3-1.24C7.954 22.571 10.913 18.632 12 16.518c1.087 2.114 4.046 6.053 6.798 7.995 2.636 1.861 3.641 1.539 4.3 1.24.763-.343.902-1.515.902-2.203 0-.688-.378-5.648-.624-6.477-.815-2.736-3.713-3.66-6.383-3.364-.138.019-.276.038-.414.056.14-.017.279-.036.415-.056 2.67.296 5.568-.628 6.383-3.364.246-.829.624-5.789.624-6.479 0-.688-.139-1.86-.902-2.203-.659-.299-1.664-.621-4.3 1.24C16.046 4.747 13.087 8.686 12 10.8z"/>
+            </svg>
+          </a>
+          <a href="https://github.com/ikristina" title="GitHub">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+          </a>
+          <a href="/rss.xml" title="RSS Feed">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6.503 20.752c0 1.794-1.456 3.248-3.251 3.248S0 22.546 0 20.752s1.456-3.248 3.252-3.248 3.251 1.454 3.251 3.248zM1.677 6.082v4.15c6.988 0 12.65 5.662 12.65 12.65h4.15c0-9.271-7.529-16.8-16.8-16.8zM1.677.014v4.15C14.44 4.164 24 13.724 24 26.487h4.15C28.15 11.952 16.212.014 1.677.014z"/>
+            </svg>
+          </a>
+        </div>
+        <div class="calendar">
+          <div class="calendar-header">
+            <button class="calendar-nav" id="prev-month">‹</button>
+            <h4 id="calendar-title">{new Date(currentYear, currentMonth).toLocaleDateString('en-US', { month: 'long' })}</h4>
+            <button class="calendar-nav" id="next-month">›</button>
+          </div>
+          <div class="year-controls">
+            <button class="year-nav" id="prev-year">‹‹</button>
+            <span id="year-display">{currentYear}</span>
+            <button class="year-nav" id="next-year">››</button>
+          </div>
+          <div class="calendar-grid" id="calendar-grid">
+            {calendarDays.map((day) => (
+              <div class={`calendar-day ${
+                day.isToday ? 'today' : ''
+              } ${
+                day.hasPost ? 'has-post' : ''
+              } ${
+                !day.isCurrentMonth ? 'text-gray-400' : ''
+              }`}>
+                {day.isCurrentMonth ? day.date : ''}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div class="tag-cloud">
+          <h4>Tags</h4>
+          <div class="tags-container">
+            {allTags.map(({ tag, count }) => (
+              <a href={`/tags/${tag}`} class="tag-item" style={`font-size: ${0.8 + count * 0.2}rem`}>{tag}</a>
+            ))}
+          </div>
+        </div>
+      </div>
+    </aside>
+    <script define:vars={{ currentMonth, currentYear, postDates }}>
+      let calendarMonth = currentMonth;
+      let calendarYear = currentYear;
+      const posts = postDates;
+
+      function updateCalendar() {
+        document.getElementById('calendar-title').textContent = 
+          new Date(calendarYear, calendarMonth).toLocaleDateString('en-US', { month: 'long' });
+        document.getElementById('year-display').textContent = calendarYear;
+        
+        const firstDay = new Date(calendarYear, calendarMonth, 1);
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
+        
+        const calendarGrid = document.getElementById('calendar-grid');
+        calendarGrid.innerHTML = '';
+        
+        const today = new Date();
+        
+        for (let i = 0; i < 42; i++) {
+          const d = new Date(startDate);
+          d.setDate(d.getDate() + i);
+          
+          const dateStr = d.toISOString().split('T')[0];
+          const hasPost = posts.some(p => {
+            const postDate = new Date(p);
+            return !isNaN(postDate.getTime()) && postDate.toISOString().split('T')[0] === dateStr;
+          });
+          const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+          const isCurrentMonth = d.getMonth() === calendarMonth;
+          
+          const dayEl = document.createElement('div');
+          dayEl.className = `calendar-day ${isToday && isCurrentMonth ? 'today' : ''} ${hasPost ? 'has-post' : ''} ${!isCurrentMonth ? 'text-gray-400' : ''}`;
+          dayEl.textContent = isCurrentMonth ? d.getDate() : '';
+          calendarGrid.appendChild(dayEl);
+        }
+      }
+
+      document.getElementById('prev-month').addEventListener('click', () => {
+        calendarMonth--;
+        if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+        updateCalendar();
+      });
+
+      document.getElementById('next-month').addEventListener('click', () => {
+        calendarMonth++;
+        if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+        updateCalendar();
+      });
+
+      document.getElementById('prev-year').addEventListener('click', () => {
+        calendarYear--;
+        updateCalendar();
+      });
+
+      document.getElementById('next-year').addEventListener('click', () => {
+        calendarYear++;
+        updateCalendar();
+      });
+
+      // Add click handlers for calendar days
+      document.addEventListener('click', (e) => {
+        const target = e.target.closest('.calendar-day');
+        if (target && target.classList.contains('has-post') && target.textContent.trim() !== '') {
+          const year = calendarYear;
+          const month = calendarMonth;
+          const day = parseInt(target.textContent);
+          const date = new Date(year, month, day).toISOString().split('T')[0];
+          window.location.href = `/date/${date}`;
+        }
+      });
+    </script>
+    <script>
+      setTimeout(function() {
+        // Add code headers
+        document.querySelectorAll('pre').forEach(function(pre) {
+          const code = pre.querySelector('code');
+          
+          let language = 'Code';
+          
+          // Check for language class on both pre and code elements
+          const preMatch = pre.className.match(/language-(\w+)/);
+          const codeMatch = code ? code.className.match(/language-(\w+)/) : null;
+          
+          if (preMatch) {
+            language = preMatch[1].charAt(0).toUpperCase() + preMatch[1].slice(1);
+          } else if (codeMatch) {
+            language = codeMatch[1].charAt(0).toUpperCase() + codeMatch[1].slice(1);
+          }
+          
+          const header = document.createElement('div');
+          header.style.cssText = 'background: #2d2d2d; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-radius: 6px 6px 0 0; margin: 0; font-size: 12px;';
+          
+          const lang = document.createElement('span');
+          lang.textContent = language;
+          lang.style.cssText = 'color: #9ca3af; font-family: monospace;';
+          
+          const copy = document.createElement('button');
+          copy.textContent = 'Copy';
+          copy.style.cssText = 'background: none; border: 1px solid #555; color: #9ca3af; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 11px;';
+          copy.onclick = function() {
+            navigator.clipboard.writeText(pre.querySelector('code').textContent);
+            copy.textContent = 'Copied!';
+            setTimeout(() => copy.textContent = 'Copy', 1000);
+          };
+          
+          header.appendChild(lang);
+          header.appendChild(copy);
+          
+          pre.style.borderRadius = '0 0 6px 6px';
+          pre.style.marginTop = '0';
+          pre.parentNode.insertBefore(header, pre);
+        });
+      }, 200);
+      
+      // Generate table of contents only if showToc is true in frontmatter
+      const showToc = document.querySelector('meta[name="show-toc"]')?.content === 'true';
+      const headings = document.querySelectorAll('article h2, article h3');
+      if (showToc && headings.length > 0) {
+        const toc = document.getElementById('toc');
+        const tocList = document.createElement('ul');
+        tocList.style.cssText = 'list-style: none; padding: 1rem; background: #f9f9f9; border-radius: 6px; margin-bottom: 2rem;';
+        
+        const tocTitle = document.createElement('h4');
+        tocTitle.textContent = 'Table of Contents';
+        tocTitle.style.margin = '1.5rem 0 0 0';
+        toc.appendChild(tocTitle);
+        
+        headings.forEach((heading, i) => {
+          const id = 'heading-' + i;
+          heading.id = id;
+          
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.href = '#' + id;
+          a.textContent = heading.textContent;
+          a.style.cssText = 'color: #38a169; text-decoration: none; padding: 0.2rem 0; display: block;';
+          
+          if (heading.tagName === 'H3') {
+            li.style.paddingLeft = '1rem';
+          }
+          
+          li.appendChild(a);
+          tocList.appendChild(li);
+        });
+        
+        toc.appendChild(tocList);
+      }
+      
+      // Image popup functionality
+      document.querySelectorAll('article img, .blog-content img').forEach(img => {
+        img.style.cursor = 'pointer';
+        img.addEventListener('click', () => {
+          const popup = document.createElement('div');
+          popup.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;display:flex;align-items:center;justify-content:center;cursor:pointer';
+          
+          const popupImg = document.createElement('img');
+          popupImg.src = img.src;
+          popupImg.alt = img.alt;
+          popupImg.style.cssText = 'max-width:90%;max-height:90%;object-fit:contain';
+          
+          popup.appendChild(popupImg);
+          document.body.appendChild(popup);
+          
+          popup.addEventListener('click', () => {
+            document.body.removeChild(popup);
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

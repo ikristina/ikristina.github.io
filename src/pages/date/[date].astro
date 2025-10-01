@@ -1,0 +1,75 @@
+---
+export async function getStaticPaths() {
+  const allPosts = await Astro.glob('../blog/*.md');
+  const now = new Date();
+  const posts = allPosts.filter(post => new Date(post.frontmatter.date) <= now);
+  
+  const dates = new Set();
+  posts.forEach(post => {
+    if (post.frontmatter.date) {
+      const dateOnly = new Date(post.frontmatter.date).toISOString().split('T')[0];
+      dates.add(dateOnly);
+    }
+  });
+  
+  return Array.from(dates).map(date => ({
+    params: { date },
+    props: { 
+      posts: posts.filter(post => {
+        const postDateOnly = new Date(post.frontmatter.date).toISOString().split('T')[0];
+        return postDateOnly === date;
+      }),
+      date
+    }
+  }));
+}
+
+const { posts, date } = Astro.props;
+const formattedDate = new Date(date).toLocaleDateString('en-US', { 
+  year: 'numeric', 
+  month: 'long', 
+  day: 'numeric' 
+});
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/png" href="https://avatars.githubusercontent.com/u/10219431" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Posts from {formattedDate}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Serif+Pro:ital,wght@0,400;0,600;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/src/styles/global.css" />
+  </head>
+  <body>
+    <div class="main-content">
+      <main>
+        <a href="/" class="blog-header">
+          <img src="/logo.png" alt="Logo" class="blog-logo" />
+          <h1>Threads of Thought</h1>
+        </a>
+        
+        <h2>Posts from {formattedDate}</h2>
+        
+        <ul>
+          {posts.map((post) => (
+            <li>
+              <a href={post.url}>{post.frontmatter.title}</a>
+              <p class="date">{post.frontmatter.date}</p>
+              <p class="description">{post.frontmatter.description}</p>
+              <div class="tags">
+                {post.frontmatter.tags?.map((tag) => (
+                  <a href={`/tags/${tag}`} class="tag">{tag}</a>
+                ))}
+              </div>
+              <a href={post.url} class="read-more">Read more →</a>
+            </li>
+          ))}
+        </ul>
+      </main>
+    </div>
+  </body>
+</html>
