@@ -9,7 +9,7 @@ A personal blog about Go programming, software development, and random thoughts.
 - **Pagination**: Posts organized with 8 posts per page
 - **Interactive Calendar**: Click on dates to see posts from that day
 - **Tag System**: Browse posts by topic with tag cloud
-- **RSS Feed**: Subscribe at `/rss.xml`
+- **RSS Feed**: Subscribe at `/rss.xml` for automatic updates on new posts
 - **Image Popups**: Click images for full-size view
 - **Post Navigation**: Previous/next links between posts
 - **Table of Contents**: Optional TOC generation for long posts
@@ -57,11 +57,14 @@ title: 'Your Post Title'
 date: '2025-01-15 14:30 EST'
 description: 'Brief description of your post'
 tags: ['go', 'programming', 'tutorial']
+image: '/images/post-image.jpg'  # Optional: for social media sharing
 showToc: true
 ---
 
 Your post content here...
 ```
+
+**Image for Social Sharing**: If no `image` is specified, the system automatically uses the first image found in your post content for social media previews.
 
 ## 🔍 Search
 

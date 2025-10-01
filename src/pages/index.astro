@@ -64,7 +64,24 @@ const postDates = publishedPosts.map(p => p.frontmatter.date).filter(Boolean);
 		<link rel="icon" type="image/png" href="https://avatars.githubusercontent.com/u/10219431" />
 		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Blog</title>
+		<title>Threads of Thought</title>
+		<meta name="description" content="A personal blog about Go programming, software development, and random thoughts by Kristina." />
+		
+		<!-- Open Graph / Facebook -->
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://ikristina.github.io" />
+		<meta property="og:title" content="Threads of Thought" />
+		<meta property="og:description" content="A personal blog about Go programming, software development, and random thoughts by Kristina." />
+		<meta property="og:image" content="https://ikristina.github.io/logo-social.png" />
+		<meta property="og:site_name" content="Threads of Thought" />
+		
+		<!-- Twitter -->
+		<meta property="twitter:card" content="summary_large_image" />
+		<meta property="twitter:url" content="https://ikristina.github.io" />
+		<meta property="twitter:title" content="Threads of Thought" />
+		<meta property="twitter:description" content="A personal blog about Go programming, software development, and random thoughts by Kristina." />
+		<meta property="twitter:image" content="https://ikristina.github.io/logo-social.png" />
+		
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Serif+Pro:ital,wght@0,400;0,600;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
