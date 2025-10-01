@@ -1,4 +1,4 @@
-export async function get() {
+export async function GET() {
   const posts = await import.meta.glob('./blog/*.md', { eager: true });
   
   const searchIndex = Object.values(posts)
@@ -12,7 +12,7 @@ export async function get() {
       url: post.url
     }));
 
-  return {
-    body: JSON.stringify(searchIndex)
-  };
+  return new Response(JSON.stringify(searchIndex), {
+    headers: { 'Content-Type': 'application/json' }
+  });
 }

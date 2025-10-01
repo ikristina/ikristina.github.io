@@ -4,7 +4,7 @@ import Header from '../components/Header.astro';
 import Sidebar from '../components/Sidebar.astro';
 import { calculateReadingTime } from '../utils/readingTime.js';
 
-const allPosts = await Astro.glob('./blog/*.md');
+const allPosts = Object.values(await import.meta.glob('./blog/*.md', { eager: true }));
 
 // Filter out future posts and sort newest to oldest
 const now = new Date();
@@ -13,13 +13,20 @@ const sortedPosts = publishedPosts.sort((a, b) => new Date(b.frontmatter.date) -
 
 // Show first 8 posts on homepage
 const postsPerPage = 8;
-const posts = await Promise.all(
-  sortedPosts.slice(0, postsPerPage).map(async (post) => {
-    const content = post.compiledContent ? post.compiledContent() : '';
-    const readingTime = calculateReadingTime(content);
-    return { ...post, readingTime };
-  })
-);
+const posts = sortedPosts.slice(0, postsPerPage).map((post) => {
+  // Try different ways to get content for reading time
+  let content = '';
+  if (typeof post.rawContent === 'function') {
+    content = post.rawContent();
+  } else if (post.body) {
+    content = post.body;
+  } else if (post.compiledContent) {
+    content = typeof post.compiledContent === 'function' ? post.compiledContent() : post.compiledContent;
+  }
+  
+  const readingTime = calculateReadingTime(content);
+  return { ...post, readingTime };
+});
 const totalPages = Math.ceil(sortedPosts.length / postsPerPage);
 
 // Generate calendar for current month

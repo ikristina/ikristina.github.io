@@ -1,4 +1,4 @@
-export async function get() {
+export async function GET() {
   const posts = await import.meta.glob('./blog/*.md', { eager: true });
   
   const items = Object.values(posts)
@@ -25,8 +25,7 @@ export async function get() {
   </channel>
 </rss>`;
 
-  return {
-    body: rss,
+  return new Response(rss, {
     headers: { 'Content-Type': 'application/rss+xml' }
-  };
+  });
 }

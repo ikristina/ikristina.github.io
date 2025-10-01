@@ -37,7 +37,7 @@ if (!ogImage) {
 }
 
 // Get all posts for calendar and tag cloud
-const allPosts = await Astro.glob('../pages/blog/*.md');
+const allPosts = Object.values(await import.meta.glob('../pages/blog/*.md', { eager: true }));
 const now = new Date();
 const posts = allPosts.filter(post => new Date(post.frontmatter.date) <= now);
 
@@ -76,11 +76,8 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Serif+Pro:ital,wght@0,400;0,600;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
-    <script type="module">
-      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-      mermaid.initialize({ startOnLoad: true, theme: 'default' });
-    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   </head>
   <body>
     <Header />
@@ -104,16 +101,16 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
         </article>
         
         <nav class="post-nav">
-          {prevPost && (
-            <a href={prevPost.url} class="nav-link prev">
+          {nextPost && (
+            <a href={nextPost.url} class="nav-link prev">
               <span>← Previous</span>
-              <span class="nav-title">{prevPost.frontmatter.title}</span>
+              <span class="nav-title">{nextPost.frontmatter.title}</span>
             </a>
           )}
-          {nextPost && (
-            <a href={nextPost.url} class="nav-link next">
+          {prevPost && (
+            <a href={prevPost.url} class="nav-link next">
               <span>Next →</span>
-              <span class="nav-title">{nextPost.frontmatter.title}</span>
+              <span class="nav-title">{prevPost.frontmatter.title}</span>
             </a>
           )}
         </nav>
@@ -136,11 +133,14 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
           
           let language = 'Code';
           
-          // Check for language class on both pre and code elements
+          // Check for data-language attribute (Shiki) or language class (fallback)
+          const dataLang = pre.getAttribute('data-language');
           const preMatch = pre.className.match(/language-(\w+)/);
           const codeMatch = code ? code.className.match(/language-(\w+)/) : null;
           
-          if (preMatch) {
+          if (dataLang) {
+            language = dataLang.charAt(0).toUpperCase() + dataLang.slice(1);
+          } else if (preMatch) {
             language = preMatch[1].charAt(0).toUpperCase() + preMatch[1].slice(1);
           } else if (codeMatch) {
             language = codeMatch[1].charAt(0).toUpperCase() + codeMatch[1].slice(1);
@@ -184,6 +184,37 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
           pre.parentNode.insertBefore(header, pre);
         });
       }, 200);
+      
+      // Initialize Mermaid
+      setTimeout(() => {
+        if (typeof mermaid !== 'undefined') {
+          console.log('Mermaid found, initializing...');
+          mermaid.initialize({ 
+            startOnLoad: false, 
+            theme: 'default',
+            securityLevel: 'loose'
+          });
+          
+          // Find mermaid code blocks
+          const mermaidBlocks = document.querySelectorAll('pre code.language-mermaid');
+          console.log('Found mermaid blocks:', mermaidBlocks.length);
+          
+          mermaidBlocks.forEach((block, index) => {
+            console.log('Processing mermaid block', index);
+            const mermaidDiv = document.createElement('div');
+            mermaidDiv.className = 'mermaid';
+            mermaidDiv.textContent = block.textContent;
+            mermaidDiv.id = `mermaid-${index}`;
+            block.parentElement.replaceWith(mermaidDiv);
+          });
+          
+          if (mermaidBlocks.length > 0) {
+            mermaid.run();
+          }
+        } else {
+          console.log('Mermaid not found');
+        }
+      }, 500);
       
       // Generate table of contents only if showToc is true in frontmatter
       const showToc = document.querySelector('meta[name="show-toc"]')?.content === 'true';

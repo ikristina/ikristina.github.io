@@ -226,7 +226,7 @@ graph TB
     end
     
     subgraph "Framework & Build"
-        Astro[Astro SSG<br/>v1.3.1]
+        Astro[Astro SSG<br/>v5.5.0]
         Node[Node.js]
         NPM[NPM Package Manager]
     end
@@ -302,7 +302,7 @@ flowchart TD
 ### Comments System Architecture
 
 ```mermaid
-flowchart LR
+flowchart TD
     A[Blog Post Page] --> B[Comments Component]
     B --> C[Giscus Integration]
     C --> D[GitHub Discussions API]
@@ -321,7 +321,7 @@ flowchart TD
     B --> C[GitHub webhook triggers]
     C --> D[GitHub Actions workflow starts]
     
-    subgraph "Build Process"
+    subgraph Build["Build Process"]
         D --> E[Checkout code]
         E --> F[Setup Node.js]
         F --> G[Install dependencies]
@@ -329,13 +329,13 @@ flowchart TD
         H --> I[Generate static files]
     end
     
-    subgraph "Deployment"
+    subgraph Deploy["Deployment"]
         I --> J[Deploy to GitHub Pages]
         J --> K[Update DNS]
-        K --> L[Site live at ikristina.github.io]
+        K --> L[Site live]
     end
     
-    subgraph "Verification"
+    subgraph Verify["Verification"]
         L --> M[Health checks]
         M --> N[RSS feed updated]
         M --> O[Search index updated]
@@ -347,14 +347,14 @@ flowchart TD
 
 ```mermaid
 graph TB
-    subgraph "Security Measures"
-        A[Static Site Generation<br/>No server-side vulnerabilities]
+    subgraph Security["Security Measures"]
+        A[Static Site Generation<br/>No server vulnerabilities]
         B[GitHub Pages HTTPS<br/>SSL/TLS encryption]
         C[Content Security Policy<br/>XSS protection]
-        D[No sensitive data storage<br/>Client-side only]
+        D[No sensitive data<br/>Client-side only]
     end
     
-    subgraph "Performance Optimizations"
+    subgraph Performance["Performance Optimizations"]
         E[Pre-built static files<br/>Fast loading]
         F[CDN delivery<br/>GitHub Pages CDN]
         G[Optimized images<br/>Proper sizing]
@@ -362,7 +362,7 @@ graph TB
         I[Font optimization<br/>Google Fonts preload]
     end
     
-    subgraph "Monitoring"
+    subgraph Monitoring["Monitoring"]
         J[GitHub Pages analytics]
         K[RSS feed validation]
         L[Search functionality testing]

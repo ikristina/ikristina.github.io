@@ -1,4 +1,4 @@
-export async function get() {
+export async function GET() {
   const posts = await import.meta.glob('./blog/*.md', { eager: true });
   const site = 'https://ikristina.github.io';
   
@@ -17,8 +17,7 @@ export async function get() {
 ${postUrls}
 </urlset>`;
 
-  return {
-    body: sitemap,
+  return new Response(sitemap, {
     headers: { 'Content-Type': 'application/xml' }
-  };
+  });
 }

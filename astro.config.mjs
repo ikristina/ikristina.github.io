@@ -7,6 +7,9 @@ export default defineConfig({
     strict: true,
   },
   markdown: {
-    syntaxHighlight: 'prism'
+    syntaxHighlight: {
+      type: 'shiki',
+      excludeLangs: ['mermaid']
+    }
   }
 });

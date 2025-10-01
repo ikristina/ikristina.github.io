@@ -15,7 +15,7 @@ So I built this one with Astro. Here's how it works and why I made these choices
 
 Let's start with the big picture, how this blog fits into the broader ecosystem:
 
-<div class="mermaid">
+```mermaid
 graph LR
     subgraph "External Actors"
         Reader[Blog Reader]
@@ -44,7 +44,7 @@ graph LR
     Blog -->|Font loading| GoogleFonts
     Blog -->|RSS feed| RSS
     GitHub -->|Source code & content| Blog
-</div>
+```
 
 ## Why Static Site Generation?
 
@@ -79,7 +79,7 @@ The biggest decision was going with **Static Site Generation (SSG)** instead of 
 
 ## Technology Stack Architecture
 
-<div class="mermaid">
+```mermaid
 graph TB
     subgraph "Frontend Technologies"
         HTML5[HTML5]
@@ -90,7 +90,7 @@ graph TB
     end
 
     subgraph "Framework & Build"
-        Astro[Astro SSG<br/>v1.3.1]
+        Astro[Astro SSG<br/>v5.5.0]
         Node[Node.js]
         NPM[NPM Package Manager]
     end
@@ -122,7 +122,7 @@ graph TB
     NPM --> Node
     
     GitHubActions --> GitHubPages
-</div>
+```
 
 ### Why Astro?
 
@@ -161,7 +161,7 @@ I looked at a bunch of options before settling on Astro:
 
 ## Component Architecture
 
-<div class="mermaid">
+```mermaid
 graph TB
     subgraph "Web Application Components"
         subgraph "Pages"
@@ -199,7 +199,7 @@ graph TB
     SearchPage --> Search
     Search --> SearchIndexGen
     BlogLayout --> ReadingTime
-</div>
+```
 
 ### How I Organized Things
 
@@ -217,7 +217,7 @@ graph TB
 
 ## Data Flow Architecture
 
-<div class="mermaid">
+```mermaid
 flowchart TD
     subgraph "Content Creation"
         A[Author writes Markdown] --> B[Git commit & push]
@@ -251,7 +251,7 @@ flowchart TD
     
     H --> N
     P --> Q[Giscus API]
-</div>
+```
 
 ### The Content Pipeline
 
@@ -284,7 +284,7 @@ flowchart TD
 
 ### Search System
 
-<div class="mermaid">
+```mermaid
 flowchart LR
     subgraph "Search Implementation"
         A[Blog Posts] --> B[Build Time Processing]
@@ -303,7 +303,7 @@ flowchart LR
     
     D --> H
     D --> K
-</div>
+```
 
 **Search Decisions:**
 
@@ -327,7 +327,7 @@ flowchart LR
 
 ### Calendar System
 
-<div class="mermaid">
+```mermaid
 flowchart TD
     A[Blog Posts with Dates] --> B[Extract Post Dates]
     B --> C[Generate Calendar Grid]
@@ -337,7 +337,7 @@ flowchart TD
     E --> G[Year Navigation]
     E --> H[Click to View Posts]
     H --> I[Date-based Routing]
-</div>
+```
 
 **Calendar Decisions:**
 
@@ -361,8 +361,8 @@ flowchart TD
 
 ### Comments System
 
-<div class="mermaid">
-flowchart LR
+```mermaid
+flowchart TD
     A[Blog Post Page] --> B[Comments Component]
     B --> C[Giscus Integration]
     C --> D[GitHub Discussions API]
@@ -371,7 +371,7 @@ flowchart LR
     F --> G[User Interaction]
     G --> H[GitHub OAuth]
     H --> I[Post Comments]
-</div>
+```
 
 **Comments Decisions:**
 
@@ -399,13 +399,13 @@ flowchart LR
 
 ## Deployment Pipeline
 
-<div class="mermaid">
+```mermaid
 flowchart TD
     A[Developer writes content] --> B[Git commit to main branch]
     B --> C[GitHub webhook triggers]
     C --> D[GitHub Actions workflow starts]
-
-    subgraph "Build Process"
+    
+    subgraph Build["Build Process"]
         D --> E[Checkout code]
         E --> F[Setup Node.js]
         F --> G[Install dependencies]
@@ -413,19 +413,19 @@ flowchart TD
         H --> I[Generate static files]
     end
     
-    subgraph "Deployment"
+    subgraph Deploy["Deployment"]
         I --> J[Deploy to GitHub Pages]
         J --> K[Update DNS]
-        K --> L[Site live at ikristina.github.io]
+        K --> L[Site live]
     end
     
-    subgraph "Verification"
+    subgraph Verify["Verification"]
         L --> M[Health checks]
         M --> N[RSS feed updated]
         M --> O[Search index updated]
         M --> P[Sitemap updated]
     end
-</div>
+```
 
 ### Deployment Setup
 
@@ -449,16 +449,16 @@ flowchart TD
 
 ## Performance & Security Architecture
 
-<div class="mermaid">
+```mermaid
 graph TB
-    subgraph "Security Measures"
-        A[Static Site Generation<br/>No server-side vulnerabilities]
+    subgraph Security["Security Measures"]
+        A[Static Site Generation<br/>No server vulnerabilities]
         B[GitHub Pages HTTPS<br/>SSL/TLS encryption]
         C[Content Security Policy<br/>XSS protection]
-        D[No sensitive data storage<br/>Client-side only]
+        D[No sensitive data<br/>Client-side only]
     end
-
-    subgraph "Performance Optimizations"
+    
+    subgraph Performance["Performance Optimizations"]
         E[Pre-built static files<br/>Fast loading]
         F[CDN delivery<br/>GitHub Pages CDN]
         G[Optimized images<br/>Proper sizing]
@@ -466,12 +466,12 @@ graph TB
         I[Font optimization<br/>Google Fonts preload]
     end
     
-    subgraph "Monitoring"
+    subgraph Monitoring["Monitoring"]
         J[GitHub Pages analytics]
         K[RSS feed validation]
         L[Search functionality testing]
     end
-</div>
+```
 
 ### Performance Stuff
 

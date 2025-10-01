@@ -1,7 +1,7 @@
 ---
 layout: ../../layouts/BlogPost.astro
 title: 'Developing a QR Code Generator: Build Interactive CLI Apps Using Bubble Tea'
-date: '2025-09-29 06:00 MDT'
+date: '2025-09-28 21:00 MDT'
 description: 'Build a QR code generator CLI with a gopher mascot overlay using Bubble Tea''s MVU architecture for easy and modular development'
 tags: ['go', 'cli', 'bubbletea', 'qr-code']
 showToc: false
