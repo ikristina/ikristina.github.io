@@ -1,10 +1,11 @@
-export async function GET({ site }) {
+export async function get() {
   const posts = await import.meta.glob('./blog/*.md', { eager: true });
+  const site = 'https://ikristina.github.io';
   
   const postUrls = Object.values(posts)
     .filter(post => new Date(post.frontmatter.date) <= new Date())
-    .map(post => `${site}${post.url}`)
-    .join('\n  ');
+    .map(post => `    <url><loc>${site}${post.url}</loc></url>`)
+    .join('\n');
 
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -13,10 +14,11 @@ export async function GET({ site }) {
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
-  ${postUrls.split('\n').map(url => url.trim() ? `<url><loc>${url}</loc></url>` : '').join('\n  ')}
+${postUrls}
 </urlset>`;
 
-  return new Response(sitemap, {
+  return {
+    body: sitemap,
     headers: { 'Content-Type': 'application/xml' }
-  });
+  };
 }

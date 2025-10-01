@@ -1,7 +1,8 @@
 {
-  "name": "@example/minimal",
+  "name": "threads-of-thought",
   "type": "module",
-  "version": "0.0.1",
+  "version": "1.0.0",
+  "description": "A personal blog about Go programming and software development",
   "private": true,
   "scripts": {
     "dev": "astro dev",

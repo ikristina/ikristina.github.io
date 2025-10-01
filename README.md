@@ -1,43 +1,57 @@
-# [Astro](https://astro.build) GitHub Pages Template
+# Threads of Thought
 
-## 🤖 Automatic Deployment to GitHub Pages
+A personal blog about Go programming, software development, and random thoughts. Built with [Astro](https://astro.build) and deployed to GitHub Pages.
 
-This minimal Astro project template comes with a [GitHub Action](https://github.com/features/actions) that automatically deploys your site to [GitHub Pages](https://pages.github.com/).
+## 🚀 Features
 
-For more information, please see our complete deployment guide—[Deploy your Astro Site to GitHub Pages](https://docs.astro.build/en/guides/deploy/github/).
+- **Responsive Design**: Clean, readable layout that works on all devices
+- **Pagination**: Posts organized with 8 posts per page
+- **Interactive Calendar**: Click on dates to see posts from that day
+- **Tag System**: Browse posts by topic with tag cloud
+- **RSS Feed**: Subscribe at `/rss.xml`
+- **Image Popups**: Click images for full-size view
+- **Post Navigation**: Previous/next links between posts
+- **Search Engine Friendly**: Sitemap and proper meta tags
 
-## 🚀 Project Structure
+## 🛠️ Development
 
-Inside of your Astro project, you'll see the following folders and files:
+```bash
+# Install dependencies
+npm install
 
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
 ```
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+
+## 📝 Writing Posts
+
+Create new posts in `src/pages/blog/` as Markdown files with frontmatter:
+
+```markdown
+---
+layout: ../../layouts/BlogPost.astro
+title: 'Your Post Title'
+date: '2025-01-15 14:30 EST'
+description: 'Brief description of your post'
+tags: ['go', 'programming', 'tutorial']
+showToc: true
+---
+
+Your post content here...
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## 🚀 Deployment
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+Automatically deploys to GitHub Pages on push to `main` branch via GitHub Actions.
 
-Any static assets, like images, can be placed in the `public/` directory.
+## 📄 License
 
-## 🧞 Commands
+MIT License - feel free to use this code as a template for your own blog!
 
-All commands are run from the root of the project, from a terminal:
-
-| Command                | Action                                           |
-| :--------------------- | :----------------------------------------------- |
-| `npm install`          | Installs dependencies                            |
-| `npm run dev`          | Starts local dev server at `localhost:3000`      |
-| `npm run build`        | Build your production site to `./dist/`          |
-| `npm run preview`      | Preview your build locally, before deploying     |
-| `npm run astro ...`    | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+**Note**: The blog template and code are MIT licensed, but the actual blog posts and content remain copyrighted by the author.
