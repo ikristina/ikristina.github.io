@@ -44,6 +44,7 @@ graph TB
         GitHubPages[GitHub Pages]
         Giscus[Giscus Comments]
         GoogleFonts[Google Fonts]
+        GoatCounter[GoatCounter Analytics]
     end
     
     User[Blog Reader] -->|HTTPS| WebApp
@@ -58,6 +59,7 @@ graph TB
     WebApp -->|Hosted on| GitHubPages
     WebApp -->|Comments API| Giscus
     WebApp -->|Font Loading| GoogleFonts
+    WebApp -->|Analytics| GoatCounter
 ```
 
 ### Level 3: Component Diagram
@@ -121,6 +123,7 @@ graph LR
         GitHubPages[GitHub Pages]
         Giscus[Giscus Comments]
         GoogleFonts[Google Fonts]
+        GoatCounter[GoatCounter Analytics]
         RSS[RSS Readers]
     end
     
@@ -131,6 +134,7 @@ graph LR
     Blog -->|Deployed via CI/CD| GitHubPages
     Blog -->|Comments integration| Giscus
     Blog -->|Font loading| GoogleFonts
+    Blog -->|Analytics tracking| GoatCounter
     Blog -->|RSS feed| RSS
     GitHub -->|Source code & content| Blog
 ```
@@ -242,6 +246,7 @@ graph TB
         GitHubActions[GitHub Actions<br/>CI/CD]
         Giscus[Giscus<br/>Comments]
         GoogleFonts[Google Fonts<br/>Typography]
+        GoatCounter[GoatCounter<br/>Analytics]
     end
     
     Astro --> HTML5

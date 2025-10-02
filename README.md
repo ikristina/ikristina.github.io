@@ -18,6 +18,7 @@ A personal blog about Go programming, software development, and random thoughts.
 - **Social Media SEO**: Open Graph and Twitter Card meta tags with automatic first image extraction
 - **Search Engine Friendly**: Sitemap and proper meta tags
 - **Future Post Support**: Posts with future dates are hidden until published
+- **Privacy-Friendly Analytics**: [GoatCounter](https://www.goatcounter.com/) tracking without cookies
 
 ## 📚 Technology Stack
 
@@ -26,6 +27,7 @@ A personal blog about Go programming, software development, and random thoughts.
 - **Search**: [Lunr.js](https://lunrjs.com/) - Client-side full-text search
 - **Syntax Highlighting**: [Shiki](https://shiki.matsu.io/) with Material Theme Palenight
 - **Comments**: [Giscus](https://giscus.app/) - GitHub Discussions integration
+- **Analytics**: [GoatCounter](https://www.goatcounter.com/) - Privacy-friendly tracking
 - **Fonts**: Google Fonts (Courier Prime, Libre Baskerville, Source Serif Pro)
 - **Deployment**: GitHub Pages with GitHub Actions
 - **Content**: Markdown with frontmatter
