@@ -9,6 +9,7 @@ export default defineConfig({
   markdown: {
     syntaxHighlight: {
       type: 'shiki',
+      theme: 'material-theme-palenight',
       excludeLangs: ['mermaid']
     }
   }

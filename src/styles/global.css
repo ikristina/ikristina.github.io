@@ -317,8 +317,6 @@ nav {
 }
 
 pre {
-  background: #1e1e1e !important;
-  color: #d4d4d4 !important;
   padding: 1rem;
   margin: 1.5rem 0;
   overflow-x: auto;
@@ -334,7 +332,6 @@ code {
 pre code {
   background: none !important;
   padding: 0;
-  color: #d4d4d4 !important;
 }
 
 /* Language labels using CSS - add these for each language you use */

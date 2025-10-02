@@ -13,7 +13,7 @@ A personal blog about Go programming, software development, and random thoughts.
 - **Image Popups**: Click images for full-size view
 - **Post Navigation**: Previous/next links between posts
 - **Table of Contents**: Optional TOC generation for long posts
-- **Code Syntax Highlighting**: Prism.js with copy buttons and language labels
+- **Code Syntax Highlighting**: Shiki with copy buttons and language labels
 - **Comments System**: Powered by [Giscus](https://giscus.app/) using GitHub Discussions
 - **Social Media SEO**: Open Graph and Twitter Card meta tags with automatic first image extraction
 - **Search Engine Friendly**: Sitemap and proper meta tags
@@ -24,7 +24,7 @@ A personal blog about Go programming, software development, and random thoughts.
 - **Framework**: [Astro](https://astro.build) - Static site generator
 - **Styling**: Vanilla CSS with custom design system
 - **Search**: [Lunr.js](https://lunrjs.com/) - Client-side full-text search
-- **Syntax Highlighting**: [Prism.js](https://prismjs.com/) with Tomorrow Night theme
+- **Syntax Highlighting**: [Shiki](https://shiki.matsu.io/) with Material Theme Palenight
 - **Comments**: [Giscus](https://giscus.app/) - GitHub Discussions integration
 - **Fonts**: Google Fonts (Courier Prime, Libre Baskerville, Source Serif Pro)
 - **Deployment**: GitHub Pages with GitHub Actions
