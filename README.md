@@ -5,6 +5,7 @@ A personal blog about Go programming, software development, and random thoughts.
 ## 🚀 Features
 
 - **Responsive Design**: Clean, readable layout that works on all devices
+- **GitHub Activity Heatmap**: Visual display of GitHub contributions on homepage
 - **Client-Side Search**: Powered by [Lunr.js](https://lunrjs.com/) with dropdown results and dedicated search page
 - **Pagination**: Posts organized with 8 posts per page
 - **Interactive Calendar**: Click on dates to see posts from that day

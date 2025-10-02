@@ -1,0 +1,36 @@
+---
+export interface Props {
+  username: string;
+}
+
+const { username } = Astro.props;
+---
+
+<div class="github-heatmap">
+  <img 
+    src={`https://ghchart.rshah.org/${username}`}
+    alt={`${username}'s GitHub contribution chart`}
+    loading="lazy"
+  />
+</div>
+
+<style>
+  .github-heatmap {
+    margin: 2rem 0 3rem 0;
+    width: 100%;
+    text-align: center;
+  }
+
+  .github-heatmap img {
+    width: 95%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 768px) {
+    .github-heatmap {
+      margin: 1rem 0;
+    }
+  }
+</style>

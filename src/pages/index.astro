@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Sidebar from '../components/Sidebar.astro';
+import GitHubHeatmap from '../components/GitHubHeatmap.astro';
 import { calculateReadingTime } from '../utils/readingTime.js';
 
 const allPosts = Object.values(await import.meta.glob('./blog/*.md', { eager: true }));
@@ -103,6 +104,7 @@ const postDates = publishedPosts.map(p => p.frontmatter.date).filter(Boolean);
 		<div class="content-wrapper">
 			<div class="main-content">
 				<main>
+					<GitHubHeatmap username="ikristina" />
 
 				<ul>
 					{posts.map((post) => (
