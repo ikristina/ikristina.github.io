@@ -126,38 +126,38 @@ graph TB
 
 ### Why Astro?
 
-I looked at a bunch of options before settling on Astro:
+I actually discovered Astro when I saw another blog mention it was "Built with Astro" in the footer. The site was fast and clean, so I decided to check it out. After looking at a bunch of options, I settled on Astro:
 
 **What I liked about Astro:**
 
-- Ships zero JavaScript by default (only loads what you actually need)
-- You can mix React, Vue, Svelte components if you want (no idea how to work with those front-end things, it's just an advantage they brag about)
-- Really nice developer experience
-- Built-in optimizations without the config hell
+- Zero JavaScript by default, pages are just HTML unless you add JS
+- You can use any framework you want (React, Vue, Svelte) or none at all
+- Fast builds and great performance
+- Simple to get started, no complex configuration needed
 
 **vs Next.js:**
 
-- Way simpler for static content (no getStaticProps dance)
-- Better performance for blogs
-- Less JavaScript bloat
+- Way simpler for static content (no getStaticProps/getStaticPaths boilerplate for every page)
+- Better performance for blogs (Next.js ships React runtime even for static content)
+- Less configuration overhead (Next.js has tons of options for rendering modes, caching, etc.)
 
 **vs Gatsby:**
 
-- Builds are actually fast
-- No GraphQL layer to learn
-- Things work the way you'd expect
+- Builds are actually fast (Gatsby's builds can take forever with lots of content)
+- No GraphQL layer to learn (Gatsby forces you to query everything through GraphQL, even simple data)
+- Simpler mental model (no complex plugin ecosystem to navigate)
 
 **vs Hugo:**
 
-- I know JavaScript better than Go templates (sort of. At least I worked with JS a little but never with Go templates. Although, it probably would be good to try.)
-- Component reuse is easier
-- Adding modern web features doesn't feel like fighting the framework (or at least they say so.)
+- I know Go much better than JavaScript, but for front-end templating I'm more familiar with JavaScript patterns than Go templates (even though I'd probably pick up Hugo's templating quickly)
+- Astro's component syntax feels more familiar coming from a programming background
+- Better integration with modern JavaScript libraries and tools
 
 **Trade-offs:**
 
 - Smaller ecosystem than Next.js
 - Less mature than Hugo
-- Learning curve for Astro-specific patterns
+- Learning curve for Astro-specific concepts (frontmatter separation, file-based routing, static path generation)
 
 ## Component Architecture
 

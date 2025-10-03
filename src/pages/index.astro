@@ -7,9 +7,11 @@ import { calculateReadingTime } from '../utils/readingTime.js';
 
 const allPosts = Object.values(await import.meta.glob('./blog/*.md', { eager: true }));
 
-// Filter out future posts and sort newest to oldest
+// Filter out future posts and drafts, sort newest to oldest
 const now = new Date();
-const publishedPosts = allPosts.filter(post => new Date(post.frontmatter.date) <= now);
+const publishedPosts = allPosts.filter(post => 
+  new Date(post.frontmatter.date) <= now && !post.frontmatter.draft
+);
 const sortedPosts = publishedPosts.sort((a, b) => new Date(b.frontmatter.date) - new Date(a.frontmatter.date));
 
 // Show first 8 posts on homepage

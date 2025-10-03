@@ -2,7 +2,7 @@ export async function GET() {
   const posts = await import.meta.glob('./blog/*.md', { eager: true });
   
   const items = Object.values(posts)
-    .filter(post => new Date(post.frontmatter.date) <= new Date())
+    .filter(post => new Date(post.frontmatter.date) <= new Date() && !post.frontmatter.draft)
     .sort((a, b) => new Date(b.frontmatter.date) - new Date(a.frontmatter.date))
     .map(post => `
     <item>
