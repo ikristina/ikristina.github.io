@@ -16,13 +16,12 @@ Profiling is a way to measure program performance automatically. It identifies c
 Go provides four main diagnostic approaches:
 
 1. **Profiling** – Measures CPU, memory, and blocking costs
-    
+
 2. **Tracing** – Tracks latency and concurrency across requests
-    
+
 3. ***Debugging*** *– Pauses execution to inspect state and flow // not important here*
-    
+
 4. ***Runtime statistics*** *– Provides a high-level overview of app health // not important here*
-    
 
 I’d like to focus more on profiling and especially, pprof tool.
 
@@ -33,25 +32,22 @@ I’d like to focus more on profiling and especially, pprof tool.
 Use `go test` with profiling flags:
 
 * **CPU profile.** Records which functions are active during CPU cycles.
-    
+
     ```bash
-    $ go test -cpuprofile=cpu.out
+    go test -cpuprofile=cpu.out
     ```
-    
 
 * **Memory (Heap) profile.** This tracks the stack trace every time a **heap** allocation is made.
-    
+
     ```bash
-    $ go test -memprofile=mem.out
+    go test -memprofile=mem.out
     ```
-    
 
 * **Blocking profile**. To track goroutines blocked by locks, channels, or system calls.
-    
+
     ```bash
-    $ go test -blockprofile=block.out
+    go test -blockprofile=block.out
     ```
-    
 
 **Important.** Avoid enabling more than one type of profile simultaneously, as the profiling mechanism itself can distort the result.
 
@@ -70,24 +66,22 @@ func BenchmarkProcessData(b *testing.B) {
 ```
 
 * Always set up test data outside the timed loop
-    
+
 * Reset the timer after setup to avoid measuring preparation time
-    
+
 * Use `-benchmem` to collect memory allocation metrics:
-    
 
 ```bash
-$ go test -bench=. -benchmem
+go test -bench=. -benchmem
 ```
 
 Output includes:
 
 * **ns/op** – Time per operation
-    
+
 * **B/op** – Bytes allocated per operation
-    
+
 * **allocs/op** – Number of heap allocations
-    
 
 Compare before and after optimizations to verify improvements.
 
@@ -108,11 +102,10 @@ func main() {
 Access profiles in a browser or with `go tool pprof`:
 
 * Heap: [`http://localhost:6060/debug/pprof/heap`](http://localhost:6060/debug/pprof/heap)
-    
+
 * CPU: [`http://localhost:6060/debug/pprof/profile?seconds=30`](http://localhost:6060/debug/pprof/profile?seconds=30)
-    
+
 * Goroutine: [`http://localhost:6060/debug/pprof/goroutine`](http://localhost:6060/debug/pprof/goroutine).
-    
 
 You can also write your own custom profilers [https://go.dev/wiki/CustomPprofProfiles](https://go.dev/wiki/CustomPprofProfiles)
 
@@ -121,21 +114,20 @@ You can also write your own custom profilers [https://go.dev/wiki/CustomPprofPro
 To collect the profiling log.
 
 ```bash
-$ go tool pprof cpu.out
+go tool pprof cpu.out
 ```
 
 You can also use the following flags:
 
 * `topN` - show top N samples by function
-    
+
 * `-cum` flag - sort by cumulative time
-    
+
 * `list` FunctionName - shows source code with samples per line.
-    
+
 * `disasm` - shows disassembly.
-    
+
 * `web/gv` - writes profile graph for browser/Ghostview.
-    
 
 Example `top2` output:
 
@@ -150,9 +142,8 @@ Showing nodes accounting for 90% of 2s total
 **How to read:**
 
 * **flat**: Time spent in the function itself
-    
+
 * **cum**: Cumulative time spent in the function and all functions it calls
-    
 
 Focus on functions with high **cumulative time** to target optimizations.
 
@@ -165,7 +156,6 @@ It **doesn't** track **stack** allocations because they are considered free. The
 Once a profile log is created (e.g. `mem.out`), use the go tool pprof to read it.
 
 * If you run `go tool pprof` with the `--inuse_objects` flag, the tool will report **allocation counts instead of sizes.**
-    
 
 ```bash
 $ go tool pprof mem.out
@@ -184,11 +174,10 @@ Showing nodes accounting for 90% of 5MB total
 **How to read:**
 
 * Focus on functions with high memory allocations
-    
+
 * Frequent allocations in these functions can increase GC pressure
-    
+
 * Consider reusing objects, pooling, or reducing allocations
-    
 
 Visualization:
 
@@ -198,10 +187,10 @@ Visualization:
 
 Shows a call graph with memory usage per function. Example (top of it) is from [**here**](https://go.dev/blog/pprof).
 
-![](https://cdn.hashnode.com/res/hashnode/image/upload/v1759187144260/33024988-0d23-465d-9c99-4368156cfaf5.png align="center")
+![](/images/pprof-web.png)
 
 * Using `—inuse_objects` flag output example ([from here](https://go.dev/blog/pprof)):
-    
+
 * ```bash
     $ go tool pprof --inuse_objects havlak3 havlak3.mprof
     Adjusting heap profiles for 1-in-524288 sampling rate
@@ -227,41 +216,38 @@ Shows a call graph with memory usage per function. Example (top of it) is from [
     ...
     (pprof)
     ```
-    
 
 ## Tracing for Latency and Concurrency
 
 Tracing captures latency across functions and goroutines:
 
 ```bash
-$ go test -trace trace.out
-$ go tool trace trace.out
+go test -trace trace.out
+go tool trace trace.out
 ```
 
 Traces help identify:
 
 * Functions causing delays
-    
+
 * Goroutines waiting on locks or channels
-    
+
 * Latency bottlenecks across processes
-    
 
 # Takeaways
 
 1. **Profile Before Optimizing:** The most critical step is to identify bottlenecks using tools like `go tool pprof`. This helps to focus on the right areas.
-    
-2. **Prioritize Simple Data Structures:** The CPU profile often reveals performance degradation due to inefficient use of complex data types, such as Go's `map`. The takeaway is that **"There’s no reason to use a map when an array or slice will do"** for indexed access or simple sets. Switching from maps to slices significantly improves runtime (e.g., cutting time [by nearly a factor of two](https://go.dev/blog/pprof)).
-    
-3. **Minimize Allocation to Reduce GC Pressure:** If the CPU profile shows high time spent in `runtime.mallocgc`, the program is memory-bound. The memory profile helps pinpoint code sections responsible for allocating the most memory. The general principle is that the **fastest program is often the one that makes the fewest memory allocations**. Reducing allocations minimizes garbage collector (GC) work.
-    
-4. **Implement Memory Reuse for Inner Loops:** Even necessary bookkeeping structures can generate significant allocations if created repeatedly in inner loops. Consider object pooling or reusing buffers to minimize GC pressure.
-    
-5. **Achieving Competitive Performance:** The overall conclusion of the optimization study is that when Go programmers use profiling tools to meticulously manage the garbage generated by inner loops, the resulting **Go program can be competitive with equivalent C++ code**.
-    
 
-### Main Sources with more info:
+2. **Prioritize Simple Data Structures:** The CPU profile often reveals performance degradation due to inefficient use of complex data types, such as Go's `map`. The takeaway is that **"There’s no reason to use a map when an array or slice will do"** for indexed access or simple sets. Switching from maps to slices significantly improves runtime (e.g., cutting time [by nearly a factor of two](https://go.dev/blog/pprof)).
+
+3. **Minimize Allocation to Reduce GC Pressure:** If the CPU profile shows high time spent in `runtime.mallocgc`, the program is memory-bound. The memory profile helps pinpoint code sections responsible for allocating the most memory. The general principle is that the **fastest program is often the one that makes the fewest memory allocations**. Reducing allocations minimizes garbage collector (GC) work.
+
+4. **Implement Memory Reuse for Inner Loops:** Even necessary bookkeeping structures can generate significant allocations if created repeatedly in inner loops. Consider object pooling or reusing buffers to minimize GC pressure.
+
+5. **Achieving Competitive Performance:** The overall conclusion of the optimization study is that when Go programmers use profiling tools to meticulously manage the garbage generated by inner loops, the resulting **Go program can be competitive with equivalent C++ code**.
+
+### Main Sources with more info
 
 * [https://go.dev/doc/diagnostics#profiling](https://go.dev/doc/diagnostics#profiling)
-    
+
 * [https://go.dev/blog/pprof](https://go.dev/blog/pprof)
