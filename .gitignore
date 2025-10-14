@@ -20,3 +20,6 @@ pnpm-debug.log*
 
 # Amazon Q assistant files
 .amazonq/
+
+# VS Code settings
+.vscode/
