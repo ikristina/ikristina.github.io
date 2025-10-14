@@ -448,6 +448,32 @@ article img,
   color: #38a169;
 }
 
+.buy-me-coffee {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0;
+}
+
+.coffee-button {
+  display: inline-block;
+  background: #38a169;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  border: 2px solid #38a169;
+}
+
+.coffee-button:hover {
+  background: #2f855a;
+  border-color: #2f855a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(56, 161, 105, 0.3);
+}
+
 nav a {
   color: #666;
   text-decoration: none;
