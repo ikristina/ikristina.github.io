@@ -198,11 +198,23 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
             securityLevel: 'loose'
           });
           
-          // Find mermaid code blocks
-          const mermaidBlocks = document.querySelectorAll('pre code.language-mermaid');
-          console.log('Found mermaid blocks:', mermaidBlocks.length);
+          // Find mermaid code blocks (both with and without language class)
+          const mermaidBlocks = document.querySelectorAll('pre code.language-mermaid, pre[data-language="mermaid"] code, pre:has(code) code');
+          const actualMermaidBlocks = [];
           
-          mermaidBlocks.forEach((block, index) => {
+          mermaidBlocks.forEach(block => {
+            const text = block.textContent.trim();
+            if (text.startsWith('graph') || text.startsWith('flowchart') || text.startsWith('sequenceDiagram') || 
+                text.startsWith('classDiagram') || text.startsWith('stateDiagram') || text.startsWith('erDiagram') ||
+                text.startsWith('journey') || text.startsWith('gantt') || text.startsWith('pie') ||
+                text.includes('-->') || text.includes('->')) {
+              actualMermaidBlocks.push(block);
+            }
+          });
+          
+          console.log('Found mermaid blocks:', actualMermaidBlocks.length);
+          
+          actualMermaidBlocks.forEach((block, index) => {
             console.log('Processing mermaid block', index);
             const mermaidDiv = document.createElement('div');
             mermaidDiv.className = 'mermaid';
@@ -211,7 +223,7 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
             block.parentElement.replaceWith(mermaidDiv);
           });
           
-          if (mermaidBlocks.length > 0) {
+          if (actualMermaidBlocks.length > 0) {
             mermaid.run();
           }
         } else {

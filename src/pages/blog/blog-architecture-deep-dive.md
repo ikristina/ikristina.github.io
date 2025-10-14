@@ -85,12 +85,12 @@ graph TB
         HTML5[HTML5]
         CSS3[Vanilla CSS]
         VanillaJS[Vanilla JavaScript]
-        Prism[Prism.js<br/>Syntax Highlighting]
+        Shiki[Shiki<br/>Syntax Highlighting]
         Lunr[Lunr.js<br/>Search Engine]
     end
 
     subgraph "Framework & Build"
-        Astro[Astro SSG<br/>v5.5.0]
+        Astro[Astro SSG<br/>v5.14.3]
         Node[Node.js]
         NPM[NPM Package Manager]
     end
@@ -111,7 +111,7 @@ graph TB
     Astro --> HTML5
     Astro --> CSS3
     Astro --> VanillaJS
-    VanillaJS --> Prism
+    VanillaJS --> Shiki
     VanillaJS --> Lunr
     
     Markdown --> Astro

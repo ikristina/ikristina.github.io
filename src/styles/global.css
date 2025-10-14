@@ -970,3 +970,59 @@ code {
   word-wrap: break-word;
   overflow-wrap: break-word;
 }
+
+/* Mermaid diagram styles */
+.mermaid {
+  margin: 2rem 0;
+  text-align: center;
+  background: #fdfdfd;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  overflow-x: auto;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Mermaid theme customization */
+.mermaid .node rect,
+.mermaid .node circle,
+.mermaid .node ellipse,
+.mermaid .node polygon {
+  fill: #f7fafc;
+  stroke: #38a169;
+  stroke-width: 2px;
+}
+
+.mermaid .node .label {
+  color: #2d3748;
+  font-family: 'Courier Prime', monospace;
+}
+
+.mermaid .edgePath .path {
+  stroke: #38a169;
+  stroke-width: 2px;
+}
+
+.mermaid .edgeLabel {
+  background-color: #fdfdfd;
+  color: #2d3748;
+  font-family: 'Courier Prime', monospace;
+  font-size: 12px;
+}
+
+.mermaid .cluster rect {
+  fill: #f0fdf4;
+  stroke: #38a169;
+  stroke-width: 1px;
+}
+
+.mermaid .cluster .label {
+  color: #166534;
+  font-family: 'Courier Prime', monospace;
+  font-weight: 600;
+}
