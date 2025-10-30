@@ -5,37 +5,7 @@ export interface Props {
 
 const { posts } = Astro.props;
 
-// Generate calendar for current month
-const today = new Date();
-const currentMonth = today.getMonth();
-const currentYear = today.getFullYear();
-const firstDay = new Date(currentYear, currentMonth, 1);
-const startDate = new Date(firstDay);
-startDate.setDate(startDate.getDate() - firstDay.getDay());
-
-const calendarDays = [];
-for (
-  let d = new Date(startDate);
-  calendarDays.length < 42;
-  d.setDate(d.getDate() + 1)
-) {
-  const dateStr = d.toISOString().split("T")[0];
-  const hasPost = posts.some((post) => {
-    if (!post.frontmatter.date) return false;
-    const postDate = new Date(post.frontmatter.date);
-    if (isNaN(postDate.getTime())) return false;
-    return postDate.toISOString().split("T")[0] === dateStr;
-  });
-  const isToday = d.toDateString() === today.toDateString();
-  const isCurrentMonth = d.getMonth() === currentMonth;
-  calendarDays.push({
-    date: d.getDate(),
-    hasPost,
-    isToday,
-    isCurrentMonth,
-    fullDate: dateStr,
-  });
-}
+// Calendar will be generated client-side to avoid build-time date issues
 
 // Generate tag cloud
 const tagCounts = {};
@@ -113,34 +83,16 @@ const postDates = posts.map((p) => p.frontmatter.date).filter(Boolean);
     <div class="calendar">
       <div class="calendar-header">
         <button class="calendar-nav" id="prev-month">‹</button>
-        <h4 id="calendar-title">
-          {
-            new Date(currentYear, currentMonth).toLocaleDateString("en-US", {
-              month: "long",
-            })
-          }
-        </h4>
+        <h4 id="calendar-title">Loading...</h4>
         <button class="calendar-nav" id="next-month">›</button>
       </div>
       <div class="year-controls">
         <button class="year-nav" id="prev-year">‹‹</button>
-        <span id="year-display">{currentYear}</span>
+        <span id="year-display">...</span>
         <button class="year-nav" id="next-year">››</button>
       </div>
       <div class="calendar-grid" id="calendar-grid">
-        {
-          calendarDays.map((day) => (
-            <div
-              class={`calendar-day ${day.isToday ? "today" : ""} ${
-                day.hasPost ? "has-post" : ""
-              } ${!day.isCurrentMonth ? "text-gray-400" : ""}`}
-              data-date={day.fullDate}
-              data-has-post={day.hasPost}
-            >
-              {day.isCurrentMonth ? day.date : ""}
-            </div>
-          ))
-        }
+        <!-- Calendar will be populated by JavaScript -->
       </div>
     </div>
     <div class="tag-cloud">
@@ -162,9 +114,11 @@ const postDates = posts.map((p) => p.frontmatter.date).filter(Boolean);
   </div>
 </aside>
 
-<script define:vars={{ currentMonth, currentYear, postDates }}>
-  let calendarMonth = currentMonth;
-  let calendarYear = currentYear;
+<script define:vars={{ postDates }}>
+  // Initialize with current date (client-side)
+  const now = new Date();
+  let calendarMonth = now.getMonth();
+  let calendarYear = now.getFullYear();
   const posts = postDates;
 
   function updateCalendar() {
@@ -252,4 +206,7 @@ const postDates = posts.map((p) => p.frontmatter.date).filter(Boolean);
       window.location.href = `/date/${date}`;
     }
   });
+
+  // Initialize calendar on page load
+  updateCalendar();
 </script>

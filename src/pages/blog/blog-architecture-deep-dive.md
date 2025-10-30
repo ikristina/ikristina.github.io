@@ -350,14 +350,16 @@ flowchart TD
 **Implementation:**
 
 - Vanilla JavaScript (no framework dependency)
-- Post dates extracted at build time
-- Client-side calendar generation
+- Post dates extracted at build time, passed to client
+- Fully client-side calendar generation (avoids build-time date issues)
+- Calendar initializes with current date when page loads
 
 **Trade-offs:**
 
 - More complex than static calendar
 - Requires JavaScript enabled
 - Additional client-side code
+- Slight delay on initial load while calendar generates
 
 ### Comments System
 

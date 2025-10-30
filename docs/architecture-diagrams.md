@@ -296,14 +296,16 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    A[Blog Posts with Dates] --> B[Extract Post Dates]
-    B --> C[Generate Calendar Grid]
-    C --> D[Mark Days with Posts]
-    D --> E[Interactive Calendar]
-    E --> F[Month Navigation]
-    E --> G[Year Navigation]
-    E --> H[Click to View Posts]
-    H --> I[Date-based Routing]
+    A[Blog Posts with Dates] --> B[Extract Post Dates at Build Time]
+    B --> C[Pass Dates to Client]
+    C --> D[Client-side Calendar Generation]
+    D --> E[Generate Calendar Grid with Current Date]
+    E --> F[Mark Days with Posts]
+    F --> G[Interactive Calendar]
+    G --> H[Month Navigation]
+    G --> I[Year Navigation]
+    G --> J[Click to View Posts]
+    J --> K[Date-based Routing]
 ```
 
 ### Comments System Architecture
