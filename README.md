@@ -4,6 +4,10 @@ A personal blog about Go programming, software development, and random thoughts.
 
 ## 🚀 Features
 
+### Recent Updates (2026-02-09)
+- **LaTeX Math Support**: Added full support for mathematical formulas using KaTeX (`$E=mc^2$`).
+- **Obsidian Integration**: Added templates and ignore rules for better Obsidian workflow.
+
 - **Responsive Design**: Clean, readable layout that works on all devices
 - **GitHub Activity Heatmap**: Visual display of GitHub contributions on homepage
 - **Client-Side Search**: Powered by [Lunr.js](https://lunrjs.com/) with dropdown results and dedicated search page
