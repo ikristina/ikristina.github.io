@@ -208,8 +208,8 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
             const text = block.textContent.trim();
             if (text.startsWith('graph') || text.startsWith('flowchart') || text.startsWith('sequenceDiagram') || 
                 text.startsWith('classDiagram') || text.startsWith('stateDiagram') || text.startsWith('erDiagram') ||
-                text.startsWith('journey') || text.startsWith('gantt') || text.startsWith('pie') ||
-                text.includes('-->') || text.includes('->')) {
+                text.startsWith('journey') || text.startsWith('gantt') || text.startsWith('pie') || text.startsWith('gitGraph') ||
+                text.startsWith('mindmap') || text.startsWith('timeline')) {
               actualMermaidBlocks.push(block);
             }
           });
