@@ -1,5 +1,8 @@
 import { defineConfig } from "astro/config";
 
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+
 export default defineConfig({
   site: "https://ikristina.github.io",
   server: {
@@ -11,6 +14,8 @@ export default defineConfig({
       type: 'shiki',
       theme: 'material-theme-palenight',
       excludeLangs: ['mermaid']
-    }
+    },
+    remarkPlugins: [remarkMath],
+    rehypePlugins: [rehypeKatex]
   }
 });
