@@ -3,7 +3,7 @@ layout: ../../layouts/BlogPost.astro
 title: How to check if variables escape to the heap?
 date: 2026-02-09 09:20
 description: Learn how to identify when variables escape to the heap in Go using -gcflags and how to interpret the garbage collector's output.
-tags: ['performance', 'go', 'profiling']
+tags: ['performance', 'go', 'profiling', 'garbageCollector']
 showToc: true
 ---
 ## The Command
@@ -14,10 +14,12 @@ go build -gcflags -m=2
 ```
 
 • `-gcflags`: Passes flags to the Go compiler.
+
 • `-m`: Triggers the printing of optimization decisions, including escape analysis and inlining.
+
 • Level 2 (`-m=2`): Providing the flag twice (or using `=2`) increases the verbosity. While there are up to 4 levels, level 2 is recommended as it provides sufficient detail without being overwhelming.
 
-**Interpreting the Output**
+### Interpreting the Output
 
 The output will list specific lines in the code and tell you the compiler's decision. You should look for phrases like:
 • `escapes to heap`
@@ -68,8 +70,9 @@ In a high-performance Go function, you want your variables to stay on the **Stac
 
 ## Another example of a GC Log
 
-This is a **Go garbage collector (GC) log message** indicating a forced garbage collection cycle. 
-```
+This is a **Go garbage collector (GC) log message** indicating a forced garbage collection cycle. 
+
+```bash
 GC forced  
 gc 25 @721.284s 0%: 2.4+20+0.006 ms clock, 28+0/45/0+0.079 ms cpu, 84->84->82 MB, 167 MB goal, 0 MB stacks, 0 MB globals, 12 P
 ```
@@ -95,22 +98,27 @@ Let's break down what each part means:
 
 ### Memory Stats:
 **`84->84->82 MB`**:
-- 84 MB: Heap size before GC
-- 84 MB: Heap size after GC (before sweep)
-- 82 MB: Live heap after GC
+- 84 MB: Heap size before GC.
+- 84 MB: Heap size after GC (before sweep).
+- 82 MB: Live heap after GC.
     
-**`167 MB goal`** - Target heap size before next GC
-**`12 P`** - 12 processors available
+**`167 MB goal`** - Target heap size before next GC.
+**`12 P`** - 12 processors available.
 
 ### What "GC forced" Means:
 The GC was **manually triggered** rather than automatically triggered by memory pressure. This could happen from:
 - `runtime.GC()` call in code.
+
 - External monitoring/profiling tools.
+
 - `GODEBUG=gctrace=1` environment variable.
 
 ## Common Reasons for Escaping
 • **Sharing Up the Stack:** Returning the address of a local variable (e.g., `return &u`) forces the variable to the heap because it must exist after the function returns.
+
 • **Interface conversion:** Passing a concrete value to a function that accepts an interface (like `io.Reader` or `fmt.Println`) often causes an escape because the compiler cannot determine at compile time how the value will be used.
+
 • **Global Variables:** Storing a pointer to a local variable in a global variable makes it reachable after the function ends, forcing an allocation.
+
 • **Unknown Size:** Variables with sizes not known at compile time (e.g., slices created with a variable length `make([]byte, size)`) must be allocated on the heap.
 
