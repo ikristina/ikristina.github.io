@@ -35,7 +35,10 @@ async function main() {
         console.log(`Link:        ${latestPost.link}`);
         console.log(`Published:   ${pubDate.toISOString()}`);
 
-        const message = `${latestPost.title}\n\n${latestPost.link}`;
+        const categories = latestPost.categories || [];
+        const hashtags = categories.map(tag => `#${tag.replace(/\s+/g, '')}`).join(' ');
+
+        const message = `${latestPost.title}\n\n${latestPost.link}\n\n${hashtags}`;
         const force = process.env.FORCE_POST === 'true';
 
         // 2. Post to Mastodon

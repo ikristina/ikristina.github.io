@@ -1,6 +1,6 @@
 export async function GET() {
   const posts = await import.meta.glob('./blog/*.md', { eager: true });
-  
+
   const items = Object.values(posts)
     .filter(post => new Date(post.frontmatter.date) <= new Date() && !post.frontmatter.draft)
     .sort((a, b) => new Date(b.frontmatter.date) - new Date(a.frontmatter.date))
@@ -11,6 +11,7 @@ export async function GET() {
       <pubDate>${new Date(post.frontmatter.date).toUTCString()}</pubDate>
       <link>https://ikristina.github.io${post.url}</link>
       <guid>https://ikristina.github.io${post.url}</guid>
+      ${post.frontmatter.tags ? post.frontmatter.tags.map(tag => `<category>${tag}</category>`).join('') : ''}
     </item>`)
     .join('');
 

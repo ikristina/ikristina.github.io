@@ -67,7 +67,11 @@ async function main() {
         return;
     }
     
-    const message = `${latestPost.title}\n\n${latestPost.link}`;
+    // Add hashtags from RSS categories
+    const categories = latestPost.categories || [];
+    const hashtags = categories.map(tag => `#${tag.replace(/\s+/g, '')}`).join(' ');
+    const message = `${latestPost.title}\n\n${latestPost.link}\n\n${hashtags}`;
+    
     const force = process.env.FORCE_POST === 'true';
 
     // Post to Mastodon
