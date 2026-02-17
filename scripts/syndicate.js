@@ -11,10 +11,9 @@ const BLUESKY_IDENTIFIER = process.env.BLUESKY_IDENTIFIER;
 const BLUESKY_APP_PASSWORD = process.env.BLUESKY_APP_PASSWORD;
 
 // --- Config ---
-// How old can a post be to be considered "new"? (e.g. 2 hours)
-// This prevents reposting old content on every deploy if the deployment
-// frequency is higher than the posting frequency, or catches up after a failure.
-const MAX_AGE_MS = 2 * 60 * 60 * 1000;
+// How old can a post be to be considered "new"? (e.g. 24 hours)
+// Increased to 24h to handle timezone mismatches (UTC vs local) and deployment delays.
+const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 async function main() {
     // 1. Fetch RSS Feed
@@ -32,11 +31,17 @@ async function main() {
         const now = new Date();
         const diff = now - pubDate;
 
-        console.log(`Latest post: "${latestPost.title}" published on ${pubDate.toISOString()}`);
+        console.log(`Latest post: "${latestPost.title}"`);
+        console.log(`Published: ${pubDate.toISOString()} (${latestPost.pubDate})`);
+        console.log(`Now:       ${now.toISOString()}`);
+        console.log(`Age:       ${Math.round(diff / 1000 / 60)} minutes`);
+
+        // Check for manual "force" override from environment
+        const force = process.env.FORCE_POST === 'true';
 
         // check if it's a recent post
-        if (diff > MAX_AGE_MS && !process.env.FORCE_POST) {
-            console.log(`Post is too old (${Math.round(diff / 1000 / 60)} minutes). Skipping.`);
+        if (diff > MAX_AGE_MS && !force) {
+            console.log(`Post is too old (> 24 hours). Skipping.`);
             return;
         }
 
