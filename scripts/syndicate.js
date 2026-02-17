@@ -32,62 +32,74 @@ async function main() {
         const diff = now - pubDate;
 
         console.log(`Latest post: "${latestPost.title}"`);
-        console.log(`Published: ${pubDate.toISOString()} (${latestPost.pubDate})`);
-        console.log(`Now:       ${now.toISOString()}`);
-        console.log(`Age:       ${Math.round(diff / 1000 / 60)} minutes`);
+        console.log(`Link:        ${latestPost.link}`);
+        console.log(`Published:   ${pubDate.toISOString()}`);
 
-        // Check for manual "force" override from environment
-        const force = process.env.FORCE_POST === 'true';
-
-        // check if it's a recent post
-        if (diff > MAX_AGE_MS && !force) {
-            console.log(`Post is too old (> 24 hours). Skipping.`);
-            return;
-        }
-
-        console.log('Post is new! Syndicating...');
         const message = `${latestPost.title}\n\n${latestPost.link}`;
+        const force = process.env.FORCE_POST === 'true';
 
         // 2. Post to Mastodon
         if (MASTODON_URL && MASTODON_ACCESS_TOKEN) {
             try {
-                console.log('Posting to Mastodon...');
                 const M = new Masto({
                     access_token: MASTODON_ACCESS_TOKEN,
                     timeout_ms: 60 * 1000,
                     api_url: `${MASTODON_URL}/api/v1/`,
                 });
-                await M.post('statuses', { status: message });
-                console.log('Successfully posted to Mastodon.');
+
+                // Check if already posted
+                const verify = await M.get('accounts/verify_credentials');
+                const myId = verify.data.id;
+                const statuses = await M.get(`accounts/${myId}/statuses`, { limit: 20 });
+
+                const alreadyPosted = statuses.data.some(status =>
+                    status.content.includes(latestPost.link)
+                );
+
+                if (alreadyPosted && !force) {
+                    console.log('Already posted to Mastodon. Skipping.');
+                } else {
+                    console.log('Posting to Mastodon...');
+                    await M.post('statuses', { status: message });
+                    console.log('Successfully posted to Mastodon.');
+                }
             } catch (error) {
-                console.error('Error posting to Mastodon:', error);
+                console.error('Error Mastodon:', error);
             }
-        } else {
-            console.log('Mastodon credentials not found. Skipping.');
         }
 
         // 3. Post to Bluesky
         if (BLUESKY_IDENTIFIER && BLUESKY_APP_PASSWORD) {
             try {
-                console.log('Posting to Bluesky...');
                 const agent = new BskyAgent({ service: 'https://bsky.social' });
                 await agent.login({ identifier: BLUESKY_IDENTIFIER, password: BLUESKY_APP_PASSWORD });
 
-                const rt = new RichText({ text: message });
-                await rt.detectFacets(agent);
-
-                await agent.post({
-                    text: rt.text,
-                    facets: rt.facets,
-                    createdAt: new Date().toISOString(),
+                // Check if already posted
+                const feed = await agent.getAuthorFeed({ actor: BLUESKY_IDENTIFIER, limit: 20 });
+                const alreadyPosted = feed.data.feed.some(post => {
+                    const text = post.post.record.text || '';
+                    return text.includes(latestPost.link);
                 });
-                console.log('Successfully posted to Bluesky.');
+
+                if (alreadyPosted && !force) {
+                    console.log('Already posted to Bluesky. Skipping.');
+                } else {
+                    console.log('Posting to Bluesky...');
+                    const rt = new RichText({ text: message });
+                    await rt.detectFacets(agent);
+
+                    await agent.post({
+                        text: rt.text,
+                        facets: rt.facets,
+                        createdAt: new Date().toISOString(),
+                    });
+                    console.log('Successfully posted to Bluesky.');
+                }
             } catch (error) {
-                console.error('Error posting to Bluesky:', error);
+                console.error('Error Bluesky:', error);
             }
-        } else {
-            console.log('Bluesky credentials not found. Skipping.');
         }
+
     } catch (error) {
         console.error('Error fetching/parsing RSS feed:', error);
     }
