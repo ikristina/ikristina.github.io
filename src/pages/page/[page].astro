@@ -58,7 +58,7 @@ allPosts.forEach(post => {
 });
 const tags = Object.entries(tagCounts).map(([tag, count]) => ({ tag, count }));
 
-const postDates = allPosts.map(p => p.frontmatter.date).filter(Boolean);
+const postDates = publishedPosts.map(p => p.frontmatter.date).filter(Boolean);
 ---
 
 <html lang="en">

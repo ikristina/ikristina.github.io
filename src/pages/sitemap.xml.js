@@ -3,7 +3,7 @@ export async function GET() {
   const site = 'https://ikristina.github.io';
   
   const postUrls = Object.values(posts)
-    .filter(post => new Date(post.frontmatter.date) <= new Date())
+    .filter(post => new Date(post.frontmatter.date) <= new Date() && !post.frontmatter.draft)
     .map(post => `    <url><loc>${site}${post.url}</loc></url>`)
     .join('\n');
 

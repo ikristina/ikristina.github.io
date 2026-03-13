@@ -8,7 +8,7 @@ const query = url.searchParams.get('q') || '';
 
 const allPosts = await Astro.glob('./blog/*.md');
 const now = new Date();
-const posts = allPosts.filter(post => new Date(post.frontmatter.date) <= now);
+const posts = allPosts.filter(post => new Date(post.frontmatter.date) <= now && !post.frontmatter.draft);
 ---
 
 <html lang="en">

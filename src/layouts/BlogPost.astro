@@ -39,7 +39,7 @@ if (!ogImage) {
 // Get all posts for calendar and tag cloud
 const allPosts = Object.values(await import.meta.glob('../pages/blog/*.md', { eager: true }));
 const now = new Date();
-const posts = allPosts.filter(post => new Date(post.frontmatter.date) <= now);
+const posts = allPosts.filter(post => new Date(post.frontmatter.date) <= now && !post.frontmatter.draft);
 
 // Sort posts by date for navigation
 const sortedPosts = posts.sort((a, b) => new Date(b.frontmatter.date) - new Date(a.frontmatter.date));

@@ -62,6 +62,7 @@ Create new posts in `src/pages/blog/` as Markdown files with frontmatter:
 layout: ../../layouts/BlogPost.astro
 title: 'Your Post Title'
 date: '2025-01-15 14:30 EST'
+draft: true # Optional: hides the post from being published
 description: 'Brief description of your post'
 tags: ['go', 'programming', 'tutorial']
 image: '/images/post-image.jpg'  # Optional: for social media sharing
