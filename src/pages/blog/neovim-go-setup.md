@@ -2,6 +2,7 @@
 layout: ../../layouts/BlogPost.astro
 title: "A Beginner's Guide to Configuring Neovim for Go Programming"
 date: '2025-09-24 10:00 MDT'
+draft: true
 description: 'Learn how to configure Neovim with AstroNvim for Go programming, including necessary tools, plugins, and setup steps for a seamless experience'
 tags: ['go', 'neovim', 'editor']
 showToc: true
