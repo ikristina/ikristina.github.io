@@ -1,7 +1,7 @@
 ---
 layout: ../../layouts/BlogPost.astro
 title: When Goroutines Aren't Worth It
-date: '2026-03-17 10:00 MDT'
+date: '2026-03-17 09:22 MDT'
 description: It's tempting to reach for goroutines whenever you see two independent operations. Two API calls? Two database queries? Spin up a goroutine, run them in parallel, cut your latency in half. Right? 
   Sometimes. But often the added complexity buys you nothing measurable.
 tags: ['concurrency', 'go']
