@@ -2,13 +2,13 @@
 layout: ../../layouts/BlogPost.astro
 title: 'The Multi-Raft Architecture'
 date: '2026-03-25 12:00 MDT'
-draft: true
+draft: false
 description: 'The Raft consensus protocol is widely adopted for building fault-tolerant distributed systems. It ensures that even if a node crashes or becomes unreachable, the cluster agrees on a single consistent state. However, single-group Raft does not scale well.'
 tags: ['distributed-systems', 'Raft', 'consensus', 'architecture', 'cockroachDB', 'Redpanda', 'YugabyteDB', 'TiKV']
 showToc: true
 ---
  
-**TL;DR** Single-group Raft routes all writes through one leader, which becomes a bottleneck at scale. Multi-Raft splits the keyspace into independent ranges, each with its own Raft group and leader, so writes can proceed in parallel. Real systems like CockroachDB, TiKV, YugabyteDB, and Redpanda all do this, but differ in how they handle the operational overhead of running thousands of consensus groups at once. The hard part isn't sharding the writes — it's atomically updating keys that land in different ranges.
+**TL;DR** Single-group Raft routes all writes through one leader, which becomes a bottleneck at scale. Multi-Raft splits the keyspace into independent ranges, each with its own Raft group and leader, so writes can proceed in parallel. Real systems like CockroachDB, TiKV, YugabyteDB, and Redpanda all do this, but differ in how they handle the operational overhead of running thousands of consensus groups at once. The hard part isn't sharding the writes - it's atomically updating keys that land in different ranges.
 
 # How single-group Raft works
 
