@@ -24,6 +24,7 @@ pnpm-debug.log*
 
 # VS Code settings
 .vscode/
+.idea/
 
 # Obsidian
 .obsidian
