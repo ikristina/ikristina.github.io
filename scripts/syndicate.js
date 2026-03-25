@@ -1,6 +1,5 @@
 import Parser from 'rss-parser';
-import Masto from 'mastodon-api';
-import { BskyAgent, RichText } from '@atproto/api';
+import { AtpAgent, RichText } from '@atproto/api';
 import 'dotenv/config';
 
 const parser = new Parser();
@@ -10,10 +9,6 @@ const MASTODON_ACCESS_TOKEN = process.env.MASTODON_ACCESS_TOKEN;
 const BLUESKY_IDENTIFIER = process.env.BLUESKY_IDENTIFIER;
 const BLUESKY_APP_PASSWORD = process.env.BLUESKY_APP_PASSWORD;
 
-// --- Config ---
-// How old can a post be to be considered "new"? (e.g. 24 hours)
-// Increased to 24h to handle timezone mismatches (UTC vs local) and deployment delays.
-const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 async function main() {
     // 1. Fetch RSS Feed
@@ -26,80 +21,103 @@ async function main() {
             return;
         }
 
-        const latestPost = feed.items[0];
-        const pubDate = new Date(latestPost.pubDate);
-        const now = new Date();
-        const diff = now - pubDate;
-
-        console.log(`Latest post: "${latestPost.title}"`);
-        console.log(`Link:        ${latestPost.link}`);
-        console.log(`Published:   ${pubDate.toISOString()}`);
-
-        const categories = latestPost.categories || [];
-        const hashtags = categories.map(tag => `#${tag.replace(/\s+/g, '')}`).join(' ');
-
-        const message = `${latestPost.title}\n\n${latestPost.link}\n\n${hashtags}`;
+        const MAX_AGE_MS = 24 * 60 * 60 * 1000;
         const force = process.env.FORCE_POST === 'true';
+        const now = new Date();
+
+        const recentPosts = feed.items.filter(item => {
+            const age = now - new Date(item.pubDate);
+            return force || age <= MAX_AGE_MS;
+        });
+
+        if (recentPosts.length === 0) {
+            console.log('No recent posts to syndicate.');
+            return;
+        }
+
+        console.log(`Found ${recentPosts.length} recent post(s) to syndicate.`);
 
         // 2. Post to Mastodon
+        let mastodonStatuses = null;
+        let mastodonHeaders = null;
+        let mastodonApiBase = null;
+
         if (MASTODON_URL && MASTODON_ACCESS_TOKEN) {
             try {
-                const M = new Masto({
-                    access_token: MASTODON_ACCESS_TOKEN,
-                    timeout_ms: 60 * 1000,
-                    api_url: `${MASTODON_URL}/api/v1/`,
-                });
-
-                // Check if already posted
-                const verify = await M.get('accounts/verify_credentials');
-                const myId = verify.data.id;
-                const statuses = await M.get(`accounts/${myId}/statuses`, { limit: 20 });
-
-                const alreadyPosted = statuses.data.some(status =>
-                    status.content.includes(latestPost.link)
-                );
-
-                if (alreadyPosted && !force) {
-                    console.log('Already posted to Mastodon. Skipping.');
-                } else {
-                    console.log('Posting to Mastodon...');
-                    await M.post('statuses', { status: message });
-                    console.log('Successfully posted to Mastodon.');
-                }
+                mastodonHeaders = { 'Authorization': `Bearer ${MASTODON_ACCESS_TOKEN}` };
+                mastodonApiBase = `${MASTODON_URL}/api/v1`;
+                const verify = await fetch(`${mastodonApiBase}/accounts/verify_credentials`, { headers: mastodonHeaders });
+                const { id: myId } = await verify.json();
+                const statusesRes = await fetch(`${mastodonApiBase}/accounts/${myId}/statuses?limit=40`, { headers: mastodonHeaders });
+                mastodonStatuses = await statusesRes.json();
             } catch (error) {
-                console.error('Error Mastodon:', error);
+                console.error('Error fetching Mastodon state:', error);
             }
         }
 
-        // 3. Post to Bluesky
+        // 3. Set up Bluesky
+        let bskyAgent = null;
+        let bskyFeedPosts = null;
+
         if (BLUESKY_IDENTIFIER && BLUESKY_APP_PASSWORD) {
             try {
-                const agent = new BskyAgent({ service: 'https://bsky.social' });
-                await agent.login({ identifier: BLUESKY_IDENTIFIER, password: BLUESKY_APP_PASSWORD });
-
-                // Check if already posted
-                const feed = await agent.getAuthorFeed({ actor: BLUESKY_IDENTIFIER, limit: 20 });
-                const alreadyPosted = feed.data.feed.some(post => {
-                    const text = post.post.record.text || '';
-                    return text.includes(latestPost.link);
-                });
-
-                if (alreadyPosted && !force) {
-                    console.log('Already posted to Bluesky. Skipping.');
-                } else {
-                    console.log('Posting to Bluesky...');
-                    const rt = new RichText({ text: message });
-                    await rt.detectFacets(agent);
-
-                    await agent.post({
-                        text: rt.text,
-                        facets: rt.facets,
-                        createdAt: new Date().toISOString(),
-                    });
-                    console.log('Successfully posted to Bluesky.');
-                }
+                bskyAgent = new AtpAgent({ service: 'https://bsky.social' });
+                await bskyAgent.login({ identifier: BLUESKY_IDENTIFIER, password: BLUESKY_APP_PASSWORD });
+                const bskyFeed = await bskyAgent.getAuthorFeed({ actor: BLUESKY_IDENTIFIER, limit: 40 });
+                bskyFeedPosts = bskyFeed.data.feed;
             } catch (error) {
-                console.error('Error Bluesky:', error);
+                console.error('Error fetching Bluesky state:', error);
+            }
+        }
+
+        for (const post of recentPosts) {
+            const pubDate = new Date(post.pubDate);
+            console.log(`\nPost: "${post.title}"`);
+            console.log(`Link: ${post.link}`);
+            console.log(`Published: ${pubDate.toISOString()}`);
+
+            const categories = post.categories || [];
+            const hashtags = categories.map(tag => `#${tag.replace(/\s+/g, '')}`).join(' ');
+            const message = `${post.title}\n\n${post.link}\n\n${hashtags}`;
+
+            if (mastodonStatuses) {
+                try {
+                    const alreadyPosted = mastodonStatuses.some(s => s.content.includes(post.link));
+                    if (alreadyPosted && !force) {
+                        console.log('Already posted to Mastodon. Skipping.');
+                    } else {
+                        console.log('Posting to Mastodon...');
+                        await fetch(`${mastodonApiBase}/statuses`, {
+                            method: 'POST',
+                            headers: { ...mastodonHeaders, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status: message }),
+                        });
+                        console.log('Successfully posted to Mastodon.');
+                    }
+                } catch (error) {
+                    console.error('Error posting to Mastodon:', error);
+                }
+            }
+
+            if (bskyAgent && bskyFeedPosts) {
+                try {
+                    const alreadyPosted = bskyFeedPosts.some(p => (p.post.record.text || '').includes(post.link));
+                    if (alreadyPosted && !force) {
+                        console.log('Already posted to Bluesky. Skipping.');
+                    } else {
+                        console.log('Posting to Bluesky...');
+                        const rt = new RichText({ text: message });
+                        await rt.detectFacets(bskyAgent);
+                        await bskyAgent.post({
+                            text: rt.text,
+                            facets: rt.facets,
+                            createdAt: new Date().toISOString(),
+                        });
+                        console.log('Successfully posted to Bluesky.');
+                    }
+                } catch (error) {
+                    console.error('Error posting to Bluesky:', error);
+                }
             }
         }
 
