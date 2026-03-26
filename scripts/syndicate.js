@@ -1,6 +1,13 @@
 import Parser from 'rss-parser';
 import { AtpAgent, RichText } from '@atproto/api';
+import { TwitterApi } from 'twitter-api-v2';
+import { readFileSync, writeFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import 'dotenv/config';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const SYNDICATED_PATH = join(__dirname, 'syndicated.json');
 
 const parser = new Parser();
 
@@ -8,6 +15,10 @@ const MASTODON_URL = process.env.MASTODON_URL;
 const MASTODON_ACCESS_TOKEN = process.env.MASTODON_ACCESS_TOKEN;
 const BLUESKY_IDENTIFIER = process.env.BLUESKY_IDENTIFIER;
 const BLUESKY_APP_PASSWORD = process.env.BLUESKY_APP_PASSWORD;
+const TWITTER_API_KEY = process.env.TWITTER_API_KEY;
+const TWITTER_API_SECRET = process.env.TWITTER_API_SECRET;
+const TWITTER_ACCESS_TOKEN = process.env.TWITTER_ACCESS_TOKEN;
+const TWITTER_ACCESS_SECRET = process.env.TWITTER_ACCESS_SECRET;
 
 
 async function main() {
@@ -55,7 +66,24 @@ async function main() {
             }
         }
 
-        // 3. Set up Bluesky
+        // 3. Set up Twitter
+        const syndicated = JSON.parse(readFileSync(SYNDICATED_PATH, 'utf-8'));
+        let twitterClient = null;
+
+        if (TWITTER_API_KEY && TWITTER_API_SECRET && TWITTER_ACCESS_TOKEN && TWITTER_ACCESS_SECRET) {
+            try {
+                twitterClient = new TwitterApi({
+                    appKey: TWITTER_API_KEY,
+                    appSecret: TWITTER_API_SECRET,
+                    accessToken: TWITTER_ACCESS_TOKEN,
+                    accessSecret: TWITTER_ACCESS_SECRET,
+                });
+            } catch (error) {
+                console.error('Error setting up Twitter client:', error);
+            }
+        }
+
+        // 4. Set up Bluesky
         let bskyAgent = null;
         let bskyFeedPosts = null;
 
@@ -96,6 +124,26 @@ async function main() {
                     }
                 } catch (error) {
                     console.error('Error posting to Mastodon:', error);
+                }
+            }
+
+            if (twitterClient) {
+                try {
+                    const alreadyPosted = syndicated.twitter.includes(post.link);
+                    if (alreadyPosted && !force) {
+                        console.log('Already posted to Twitter/X. Skipping.');
+                    } else {
+                        console.log('Posting to Twitter/X...');
+                        const tweet = `${post.title}\n\n${post.link}\n\n${hashtags}`.slice(0, 280);
+                        await twitterClient.v2.tweet(tweet);
+                        if (!syndicated.twitter.includes(post.link)) {
+                            syndicated.twitter.push(post.link);
+                            writeFileSync(SYNDICATED_PATH, JSON.stringify(syndicated, null, 2) + '\n');
+                        }
+                        console.log('Successfully posted to Twitter/X.');
+                    }
+                } catch (error) {
+                    console.error('Error posting to Twitter/X:', error);
                 }
             }
 
