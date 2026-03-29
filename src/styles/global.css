@@ -835,6 +835,42 @@ footer a:hover {
   text-align: left;
 }
 
+.hero-image {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.def {
+  border-bottom: 1px dotted currentColor;
+  cursor: help;
+}
+
+.def-popup {
+  position: absolute;
+  background: #1a1a1a;
+  color: #f0f0f0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
+  max-width: 280px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  z-index: 100;
+}
+
+.def-popup::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 12px;
+  width: 10px;
+  height: 10px;
+  background: #1a1a1a;
+  transform: rotate(45deg);
+}
+
 /* Main page post titles alignment */
 main > ul > li > a {
   text-align: left;

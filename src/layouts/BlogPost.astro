@@ -100,6 +100,7 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
             </div>
           </div>
         </div>
+        {image && <img src={image} alt={title} class="hero-image" />}
         {showToc && <div id="toc" class="toc"></div>}
         <article class="blog-content">
           <slot />
@@ -267,6 +268,24 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
         toc.appendChild(tocList);
       }
       
+      // Inline definition tooltips
+      let activePopup = null;
+      document.querySelectorAll('.def').forEach(el => {
+        el.addEventListener('click', e => {
+          e.stopPropagation();
+          if (activePopup) { activePopup.remove(); activePopup = null; return; }
+          const popup = document.createElement('div');
+          popup.className = 'def-popup';
+          popup.textContent = el.dataset.def;
+          document.body.appendChild(popup);
+          const rect = el.getBoundingClientRect();
+          popup.style.top = (window.scrollY + rect.bottom + 8) + 'px';
+          popup.style.left = Math.min(window.scrollX + rect.left, window.innerWidth - 300) + 'px';
+          activePopup = popup;
+        });
+      });
+      document.addEventListener('click', () => { if (activePopup) { activePopup.remove(); activePopup = null; } });
+
       // Image popup functionality
       document.querySelectorAll('article img, .blog-content img').forEach(img => {
         img.style.cursor = 'pointer';
