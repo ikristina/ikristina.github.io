@@ -2,9 +2,8 @@
 layout: ../../layouts/BlogPost.astro
 title: 'New Blog Post'
 date: '{{date}} {{time}}'
-draft: true
+draft: false
 description: ''
 tags: []
 showToc: false
 ---
-
