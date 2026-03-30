@@ -232,7 +232,7 @@ Unlike `pprof`, `go tool trace` opens a rich web-based UI showing a visual timel
 * Unbalanced or poor utilization of CPU cores
 * Latency bottlenecks across concurrent processes
 
-# Takeaways
+## Takeaways
 
 1. **Profile Before Optimizing:** The most critical step is to identify bottlenecks using tools like `go tool pprof`. Never guess what is slow, measure it first to focus your efforts on the right areas.
 

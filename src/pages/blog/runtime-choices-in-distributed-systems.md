@@ -10,7 +10,7 @@ showToc: true
 
 The Raft algorithm doesn't care what language you implement it in. Leader election, log replication, quorum commits, all of it is defined in terms of messages and state transitions, not goroutines or threads. But the runtime underneath shapes which implementation strategies are even possible. [CockroachDB, TiKV, and Redpanda all implement Multi-Raft](/blog/multi-raft-architecture), but they made different choices about how to manage thousands of Raft groups concurrently. Those choices trace back directly to their runtimes.
 
-# GC pauses look like dead leaders
+## GC pauses look like dead leaders
 
 In a Raft cluster, followers expect *heartbeats from the leader* on a regular interval, typically every 100-200ms. If a follower doesn't receive a heartbeat within the election timeout, typically 1-5 seconds, it assumes the leader is dead and starts an election.
 
@@ -35,7 +35,7 @@ Go 1.26 shipped a reworked garbage collector called **Green Tea**, which reduces
 
 Rust and C++ have no garbage collector. A process written in either language is never paused for memory management. This makes consensus timing more predictable, particularly at the tail: p99 and p999 latency are where GC shows up, because you're measuring the worst cases.
 
-# Thread-per-core requires owning the scheduler
+## Thread-per-core requires owning the scheduler
 
 *Redpanda* pins each Kafka partition, and its Raft group, to a specific CPU core. No other core ever touches that partition's data. There is nothing to lock if only one thread ever reads and writes it.
 
@@ -90,7 +90,7 @@ Even if you forced Go goroutines onto fixed OS threads, the GC would still need 
 
 Redpanda isn't the only one. Datadog's [Monocle](https://www.datadoghq.com/blog/engineering/rust-timeseries-engine/), their Rust-based timeseries engine, uses the same model: one storage shard per CPU core, each running on its own single-threaded Tokio runtime with no cross-shard locking. Each shard owns its private memtable and never touches another shard's data.
 
-# Rust: no GC, memory safety at compile time
+## Rust: no GC, memory safety at compile time
 
 [TiKV drives hundreds of thousands of Raft state machines through a single event loop](https://tikv.org/deep-dive/scalability/multi-raft/), passing data between threads without locks.
 
@@ -102,7 +102,7 @@ TiKV uses Rust instead of C++ not for performance, but for what the type system 
 
 For a Raft implementation, a data race in the consensus state machine is a split-brain bug: two nodes both believing they are the leader, committing conflicting entries. It will not show up in a test environment. Rust makes an entire class of those bugs impossible to ship.
 
-# When does the runtime become the bottleneck?
+## When does the runtime become the bottleneck?
 
 At small scale, none of this matters. A 3-node cluster handling thousands of writes per second will run fine in any language. The runtime trade-offs surface under specific conditions:
 
@@ -112,7 +112,7 @@ At small scale, none of this matters. A 3-node cluster handling thousands of wri
 
 Most of the time you won't hit these limits. Go is a fine choice, and CockroachDB has scaled it further than most systems ever need to go. But when things do break down, the runtime is usually the last thing you look at. It probably should have been earlier.
 
-# Further reading
+## Further reading
 
 **Go GC**
 - [Go GC: Prioritizing low latency and simplicity](https://go.dev/blog/go15gc) - Go blog (concurrent tri-color mark-sweep collector introduced in Go 1.5)

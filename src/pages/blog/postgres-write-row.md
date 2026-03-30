@@ -10,7 +10,7 @@ showToc: true
 
 If you'd rather skip straight to the verdict, feel free to [jump to conclusions](#conclusion).
 
-# Intro
+## Intro
 
 You send [PostgreSQL](https://www.postgresql.org/) an `INSERT`. It replies `INSERT 0 1`. The row is there.
 
@@ -30,11 +30,11 @@ This post is my attempt to trace one `INSERT` from arrival to disk, touching eac
 
 Some of this I understood before writing it. Some of it I didn't until I had to explain it.
 
-# The Query Arrives
+## The Query Arrives
 
 PostgreSQL actually documents [the path of a query](https://www.postgresql.org/docs/current/query-path.html) in its internals section. I hadn't read it before writing this. It's a good starting point.
 
-## Connection
+### Connection
 
 Before any SQL is parsed, a connection has to be established. PostgreSQL uses a [process-per-connection/user model](https://www.postgresql.org/docs/current/connect-estab.html): a `postmaster` process listens for incoming connections (at a specified TCP/IP port). When one arrives, `postmaster` calls [`fork()`](https://man7.org/linux/man-pages/man2/fork.2.html), a Unix system call that creates a copy of the calling process. The child inherits the parent's memory and file descriptors, then goes off independently to handle your connection. That copy is the backend process. It lives for the duration of the connection and exits when it closes.
 
@@ -44,7 +44,7 @@ This means every client connection is an OS process. It works well up to a few h
 
 For our purposes, assume the connection is already open. The `INSERT` string arrives at the backend process and the real work begins.
 
-## Parsing
+### Parsing
 
 The backend passes the raw SQL string to the [parser](https://www.postgresql.org/docs/current/parser-stage.html), which does two things. First, a lexer breaks the string into tokens. Then a grammar (derived from the [bison grammar file](https://github.com/postgres/postgres/blob/master/src/backend/parser/gram.y) in the source, which is famously large) builds a parse tree from those tokens.
 
@@ -54,14 +54,14 @@ The difference comes after. A compiler type-checks the AST and generates machine
 
 The parse tree itself doesn't know any of that yet. It only knows the syntactic shape of the query: that there's an `INSERT`, a target table name, a column list, and a values list. Whether the table exists or the types match is someone else's problem.
 
-## Query Rewrite
+### Query Rewrite
 
 After parsing, the query passes through the [rule system](https://www.postgresql.org/docs/current/rules.html). PostgreSQL has a general-purpose rewrite mechanism that can transform one query into another, and [views are implemented on top of it](https://www.postgresql.org/docs/current/rules-views.html#RULES-VIEWS-POWER). When you query a view, the rewriter replaces the view reference with the underlying query.
 
 For a plain `INSERT` into a real table with no rules attached, this stage is essentially a pass-through. But it's part of the pipeline, and knowing it exists matters if you're ever confused about why a query against a view behaves differently than you expect.
 
 
-# Planning
+## Planning
 
 After the rewriter, the query goes to the [planner](https://www.postgresql.org/docs/current/planner-optimizer.html). The planner's job is to figure out the most efficient way to execute the query. For a `SELECT` with joins, subqueries, and indexes, this is genuinely hard. The planner considers many possible execution strategies and picks the one with the lowest estimated cost.
 
@@ -82,13 +82,13 @@ Two nodes. `Result` produces the row from the literal values. `Insert` writes it
 
 The planner is worth knowing about even when it's idle, because the moment your `INSERT` has a `SELECT` subquery, a `RETURNING` clause feeding into something larger, or triggers that fire additional queries, the planner starts doing real work.
 
-# Executor
+## Executor
 
 The [executor](https://www.postgresql.org/docs/current/executor.html) walks the plan tree produced by the planner and carries out the actual work. For our `INSERT`, that means taking the literal values from the `Result` node and writing them to the table via the `Insert` node.
 
 Before writing anything, the executor acquires a `RowExclusiveLock` on the table. This is a lightweight lock that allows concurrent reads and other inserts, but blocks operations that would conflict, like `ALTER TABLE` or `TRUNCATE`. PostgreSQL's [locking documentation](https://www.postgresql.org/docs/current/explicit-locking.html) lists the full lock hierarchy, but for a normal `INSERT` this lock is rarely the source of contention.
 
-## Tuple formation
+### Tuple formation
 
 I don't know if it is surprising or not, but a row in PostgreSQL is not just your data. It's a **tuple** with a header that contains metadata PostgreSQL uses to manage concurrency and visibility. The [system columns](https://www.postgresql.org/docs/current/ddl-system-columns.html) are:
 
@@ -115,7 +115,7 @@ These fields are the foundation of MVCC (multi-version concurrency control). Whe
 
 The executor sets `xmin` to the current transaction ID when it forms the tuple. That single field is what keeps an in-progress insert invisible to everyone else until commit.
 
-# The Buffer Pool
+## The Buffer Pool
 
 After the executor forms the tuple, it doesn't write directly to disk. It writes to the **buffer pool**, PostgreSQL's in-memory page cache, controlled by the [`shared_buffers`](https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-SHARED-BUFFERS) setting.
 
@@ -125,7 +125,7 @@ At this point, your row exists only in shared memory. Nothing has touched the di
 
 That might sound alarming. If the server crashes now, is the data lost? This is exactly the problem WAL solves, and we'll get to it in the next section. The short answer: a WAL record is written before the insert is considered committed, so a crash doesn't lose data even if the dirty page never made it to disk.
 
-## Seeing the buffer pool
+### Seeing the buffer pool
 
 The [`pg_buffercache`](https://www.postgresql.org/docs/current/pgbuffercache.html) extension lets you inspect the buffer pool directly:
 
@@ -150,13 +150,13 @@ GROUP BY c.relname;
 
 One dirty buffer means one page with unflushed changes. After a checkpoint flushes it to disk, the dirty count drops to zero.
 
-## How full buffers are handled
+### How full buffers are handled
 
 The buffer pool is fixed in size. When it fills up and a new page needs to be loaded, PostgreSQL evicts something. It uses a [clock-sweep algorithm](https://www.interdb.jp/pg/pgsql08/01.html#814-page-replacement-algorithm) (and also [here](https://www.interdb.jp/pg/pgsql08/04.html#844-page-replacement-algorithm-clock-sweep)) rather than strict LRU. Each page has a usage count that increments on access and decrements on clock sweeps. Pages with a count of zero are eviction candidates. Dirty pages are written to disk before being evicted.
 
 The default `shared_buffers` is 128MB, which is conservative. For a dedicated database server, 25% of RAM is a common starting point.
 
-# WAL (Write-Ahead Log)
+## WAL (Write-Ahead Log)
 
 Before the dirty buffer page ever reaches disk, PostgreSQL writes a record of the change to the **Write-Ahead Log**. The rule is simple: the log record must be flushed to disk before the change is considered committed. If the server crashes, PostgreSQL replays the WAL on startup to recover any changes that didn't make it into the heap files.
 
@@ -170,13 +170,13 @@ SELECT pg_current_wal_lsn();
 
 WAL is not a PostgreSQL invention. It's a pattern used by almost every serious storage system: CockroachDB, RocksDB, SQLite, etcd. The core idea is the same everywhere. I'm planning a separate post that goes deeper into how write-ahead logging works across these systems.
 
-# The Heap File
+## The Heap File
 
 Eventually, the dirty buffer page gets flushed to disk. What it lands in is called the **heap file**. The name "heap" here doesn't mean the memory heap. It means the data is stored in no particular order, as opposed to an index which maintains a sorted structure. Every table has one or more heap files on disk.
 
 The [physical layout](https://www.postgresql.org/docs/current/storage-page-layout.html) is described in detail in the PostgreSQL docs, and the diagram at the top of this post shows it visually. Here's how it breaks down.
 
-## Pages
+### Pages
 
 Heap files are divided into **pages** of exactly 8KB. Every read and write to disk happens at the page level. Even if you insert a single row, PostgreSQL loads the entire 8KB page into the buffer pool, modifies it, and eventually writes the whole page back.
 
@@ -188,17 +188,17 @@ Each page has three parts:
 
 When a new row is inserted, PostgreSQL appends a tuple at the back of the page and adds a new ItemId entry at the front pointing to it.
 
-## Tuples
+### Tuples
 
 Each tuple has a header followed by the column data. The header contains the `xmin`, `xmax`, and other fields we saw earlier when querying system columns. The `ctid` value `(0,1)` from that query means: page 0, ItemId slot 1. Follow that ItemId pointer and you find the tuple.
 
 One thing the header also contains is a null <span class="def" data-def="An array of bits (0s and 1s) where each bit represents a yes/no flag for one slot. For NULL tracking: a 1 means the value is present, a 0 means it's NULL. Columns flagged as NULL have no bytes reserved in the tuple data at all.">bitmap</span>, one bit per column, indicating which columns are NULL. NULL values take no space in the tuple data itself.
 
-## Large values and TOAST
+### Large values and TOAST
 
 8KB pages create a problem for large values. A single `text` column with a multi-megabyte string won't fit. PostgreSQL handles this with [TOAST](https://www.postgresql.org/docs/current/storage-toast.html) (The Oversized-Attribute Storage Technique). Values larger than roughly 2KB are compressed and/or moved to a separate TOAST table. The main tuple stores a pointer to the out-of-line value instead. This happens automatically and is invisible at the SQL level.
 
-# MVCC and Transaction Visibility
+## MVCC and Transaction Visibility
 
 We've seen that when the executor inserts a tuple, it sets `xmin` to the current transaction ID. That field is what makes the row invisible to other transactions until the insert commits. This is the core of **MVCC, multi-version concurrency control**.
 
@@ -210,7 +210,7 @@ The interesting complexity is in updates and deletes. An `UPDATE` in PostgreSQL 
 
 MVCC is not a PostgreSQL invention either. CockroachDB, MySQL InnoDB, and Oracle all implement it, each with different tradeoffs. I'm planning a separate post on how it works across these systems.
 
-# Checkpointing
+## Checkpointing
 
 The WAL keeps growing. Dirty buffer pages keep accumulating. At some point PostgreSQL needs to reconcile the two: flush dirty pages to the heap files on disk and record a point in the WAL up to which everything is safely written. That process is a **checkpoint**.
 
@@ -226,7 +226,7 @@ Checkpoints are intentionally spread out over time rather than flushing everythi
 
 One thing that clicked for me reading about this: the heap file on disk is not always up to date. Between checkpoints it can be behind what's in memory and in the WAL. That's fine, because the WAL is the source of truth. The heap files are just a materialized view of it.
 
-# A Word on RDS Configuration
+## A Word on RDS Configuration
 
 While PostgreSQL deployed on your own servers is configured by editing `postgresql.conf` directly, [Amazon RDS](https://aws.amazon.com/rds/postgresql/) doesn't give you shell access to the instance. Instead, configuration is managed through **Parameter Groups**, a named collection of settings you create in the AWS console (or via CLI or Terraform) and attach to your RDS instance. Some changes apply immediately, others require a reboot.
 
@@ -242,7 +242,7 @@ Most of the parameters discussed in this post have corresponding knobs in RDS. A
 
 For most teams on RDS, the day-to-day configuration work is limited: `log_min_duration_statement` for slow query visibility, and `max_connections` when connection limits become a problem. The rest PostgreSQL and AWS handle well with their defaults.
 
-# Conclusion
+## Conclusion
 
 So, what actually happens when you write a row to PostgreSQL?
 
@@ -254,7 +254,7 @@ What I found most useful in tracing this path was seeing how each system exists 
 
 WAL and MVCC both deserve more space than one section can give them. I'm planning follow-up posts on each that go deeper and look at how other databases implement the same ideas.
 
-# Further Reading
+## Further Reading
 
 - [The Internals of PostgreSQL](https://www.interdb.jp/pg/) by Hironobu Suzuki - free, comprehensive deep-dive on everything covered here. Chapters 1 (heap), 5 (WAL), and 9 (checkpoints) are the most relevant.
 - [Postgres Atomicity](https://brandur.org/postgres-atomicity) by Brandur Leach - focuses on how PostgreSQL guarantees atomicity through WAL and MVCC, with excellent diagrams.

@@ -10,7 +10,7 @@ showToc: true
  
 **TL;DR** Single-group Raft routes all writes through one leader, which becomes a bottleneck at scale. Multi-Raft splits the keyspace into independent ranges, each with its own Raft group and leader, so writes can proceed in parallel. Real systems like CockroachDB, TiKV, YugabyteDB, and Redpanda all do this, but differ in how they handle the operational overhead of running thousands of consensus groups at once. The hard part isn't sharding the writes - it's atomically updating keys that land in different ranges.
 
-# How single-group Raft works
+## How single-group Raft works
 
 In single-group Raft, all nodes participate in **one** consensus group:
 * One node is elected **leader**, all others are followers.
@@ -30,7 +30,7 @@ In single-group Raft, all nodes participate in **one** consensus group:
 
 Here are a few diagrams.
 
-### Node State Machine (leader election)
+#### Node State Machine (leader election)
 
 The diagram below shows the three states a Raft node can be in and how it moves between them:
 
@@ -57,7 +57,7 @@ flowchart LR
     Leader -->|loses quorum| Follower
 ```
 
-### Log Replication Flow
+#### Log Replication Flow
 
 ```mermaid
 sequenceDiagram
@@ -79,7 +79,7 @@ sequenceDiagram
     L-->>F2: Notify commit
 ```
 
-### Log State Across Nodes
+#### Log State Across Nodes
 Not all nodes have the same log at any given moment, followers can lag behind the leader, for example:
 
 | Node | Log |
@@ -91,7 +91,7 @@ Not all nodes have the same log at any given moment, followers can lag behind th
 
 Raft **doesn't require** all nodes to be up to date, only a quorum (majority). Entries 1–5 are already committed because the leader + follower 1 + follower 2 = 3 out of 4 nodes acknowledged them. Follower 3 will catch up eventually.
 
-## The problem with single-group Raft
+### The problem with single-group Raft
 Every write serializes through a single leader. As throughput demands grow, that one leader becomes the ceiling - you can add more nodes, but they only improve fault tolerance, not write throughput.
 
 * **Hot key problem**. Even if your dataset is large and distributed across many machines, a single Raft leader means all writes to any key funnel through one node. One popular key can saturate the leader regardless of how much hardware you have.
@@ -101,7 +101,7 @@ Every write serializes through a single leader. As throughput demands grow, that
 
 The answer is to stop thinking of the cluster as one consensus group, and start thinking of it as many.
 
-# Multi-Raft
+## Multi-Raft
 If you have petabytes of data, you can't put it into a single Raft log. The leader would become a **massive bottleneck**, and re-syncing a lagging follower would take weeks. 
 
 Let's say we have 1PB of data and network bandwidth between the nodes ~ 1 Gbps (125 MB/s)
@@ -146,11 +146,11 @@ This unlocks what single-group Raft cannot provide:
 - **Bounded resync** - a lagging follower only needs to catch up on its range's log, not the entire dataset
 - **Geographic flexibility** - each range's leader can be placed close to the clients that write to it
 
-## How it looks in practice
+### How it looks in practice
 
 Several real systems are built exactly this way.
 
-### CockroachDB
+#### CockroachDB
 
 CockroachDB splits data into **512 MB ranges by default**, each backed by an **independent Raft group**. A single node in a large cluster can be a member of tens of thousands of Raft groups simultaneously.
 
@@ -195,7 +195,7 @@ sequenceDiagram
 
 ([Cockroach Labs Blog: Scaling Raft](https://www.cockroachlabs.com/blog/scaling-raft/))
 
-### TiKV
+#### TiKV
 
 TiKV (the storage layer behind TiDB, a distributed SQL database) calls its ranges **regions** (default 96 MB) and uses a **placement driver** to manage leader distribution and rebalancing. The naive approach to managing thousands of Raft groups would be **one thread per group**. TiKV avoids this by driving all Raft state machines through a **shared event loop written in Rust**, processing multiple ready-states in a single batch to reduce context-switching overhead.
 
@@ -223,7 +223,7 @@ sequenceDiagram
 
 ([TiKV Blog: Building a large-scale distributed storage system based on Raft](https://tikv.org/blog/building-distributed-storage-system-on-raft/))
 
-### YugabyteDB
+#### YugabyteDB
 
 YugabyteDB is an open-source distributed SQL database built by Yugabyte. It's PostgreSQL-compatible at the SQL layer (YSQL) and sits on top of a distributed storage engine called DocDB, which is where the Multi-Raft logic lives.
 
@@ -244,7 +244,7 @@ flowchart TD
 
 ([YugabyteDB Blog: How Raft-based replication works in YugabyteDB](https://www.yugabyte.com/blog/how-does-the-raft-consensus-based-replication-protocol-work-in-yugabyte-db/))
 
-### Redpanda
+#### Redpanda
 
 Redpanda is a Kafka-compatible streaming platform where each *partition* is its own Raft group. This gives stronger consistency guarantees than Kafka's ISR replication, which can acknowledge a write before all in-sync replicas have persisted it.
 
@@ -277,7 +277,7 @@ flowchart TB
 
 Each system makes different tradeoffs in range size, leader placement, and, most critically, how they handle writes that touch more than one range.
 
-## Day 2 challenges
+### Day 2 challenges
 
 Running Multi-Raft in production surfaces problems that don't show up in a 3-node test cluster.
 
@@ -287,7 +287,7 @@ Running Multi-Raft in production surfaces problems that don't show up in a 3-nod
 
 **Range splitting.** When a range grows too large or becomes a hotspot, it must be split into two - which means creating a new Raft group on the fly, electing a leader for it, and redistributing replicas, all without interrupting writes to the affected keyspace.
 
-## The hard part: cross-range transactions
+### The hard part: cross-range transactions
 
 Multi-Raft gives you independent consensus groups per range. A write to range 1 and a write to range 2 can proceed in parallel with no coordination between them. But what happens when a single transaction needs to atomically update keys in both?
 
@@ -306,13 +306,13 @@ The hard part is not the happy path. It is what happens when the coordinator cra
 
 In both cases, a cross-range transaction requires at least two quorum writes (one per range) plus the coordination overhead of the transaction record or primary lock. This is the unavoidable cost of Multi-Raft: you get parallel write throughput across ranges, but atomicity across them always requires coordination.
 
-## Wrapping up
+### Wrapping up
 
 Multi-Raft is not a single design, it is a family of tradeoffs. Every system here splits data into independent consensus groups, but they diverge immediately on what to optimize: CockroachDB minimizes network overhead with heartbeat coalescing and cuts read latency with leases; TiKV batches I/O through a shared event loop to reduce context switching; YugabyteDB keeps the SQL and storage layers cleanly separated; Redpanda eliminates scheduler overhead entirely by pinning partitions to cores.
 
 The common thread is **minimizing the coordination tax**, the overhead that consensus imposes on every operation. At scale, that tax compounds fast, and each of these systems found a different way to contain it.
 
-# Further reading
+## Further reading
 
 **Raft**
 - [In Search of an Understandable Consensus Algorithm](https://raft.github.io/raft.pdf) - Diego Ongaro & John Ousterhout (the original paper)
