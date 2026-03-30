@@ -108,10 +108,33 @@ async function main() {
                         console.log('Posting to Bluesky...');
                         const rt = new RichText({ text: message });
                         await rt.detectFacets(bskyAgent);
+
+                        let embed;
+                        if (post.enclosure?.url) {
+                            try {
+                                const imgRes = await fetch(post.enclosure.url);
+                                const imgBuf = await imgRes.arrayBuffer();
+                                const contentType = imgRes.headers.get('content-type') || 'image/png';
+                                const { data: blobData } = await bskyAgent.uploadBlob(new Uint8Array(imgBuf), { encoding: contentType });
+                                embed = {
+                                    $type: 'app.bsky.embed.external',
+                                    external: {
+                                        uri: post.link,
+                                        title: post.title,
+                                        description: post.contentSnippet || '',
+                                        thumb: blobData.blob,
+                                    },
+                                };
+                            } catch (imgError) {
+                                console.warn('Could not attach image to Bluesky post:', imgError.message);
+                            }
+                        }
+
                         await bskyAgent.post({
                             text: rt.text,
                             facets: rt.facets,
                             createdAt: new Date().toISOString(),
+                            ...(embed && { embed }),
                         });
                         console.log('Successfully posted to Bluesky.');
                     }

@@ -12,6 +12,7 @@ export async function GET() {
       <link>https://ikristina.github.io${post.url}</link>
       <guid>https://ikristina.github.io${post.url}</guid>
       ${post.frontmatter.tags ? post.frontmatter.tags.map(tag => `<category>${tag}</category>`).join('') : ''}
+      ${post.frontmatter.image ? `<enclosure url="https://ikristina.github.io${post.frontmatter.image}" type="image/png" length="0"/>` : ''}
     </item>`)
     .join('');
 
