@@ -293,7 +293,7 @@ Multi-Raft gives you independent consensus groups per range. A write to range 1 
 
 Take a bank transfer: debit account A in range 1, credit account B in range 2. Both changes must either commit or roll back together. There is no Raft group that spans both ranges. Each one only knows about its own log.
 
-DynamoDB faces the same problem. Its `TransactWriteItems` API provides ACID transactions across multiple items in different partitions, but [the 2PC mechanism requires two operations per item](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-capacity-handling) (one prepare, one commit), so each transactional write consumes twice the capacity units of a standard write. That is the cost of coordination, not a surcharge.
+DynamoDB faces the same problem. Its `TransactWriteItems` API provides ACID transactions across multiple items in different partitions, but [the 2PC mechanism requires two operations per item](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-capacity-handling) (one prepare, one commit), so each transactional write consumes twice the capacity units of a standard write. That is the cost of coordination, not a surcharge (apparently).
 
 **Two-phase commit (2PC)**:
 
