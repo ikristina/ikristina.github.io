@@ -4,7 +4,7 @@ title: 'The Multi-Raft Architecture'
 date: '2026-03-25 12:00 MDT'
 draft: false
 description: 'The Raft consensus protocol is widely adopted for building fault-tolerant distributed systems. It ensures that even if a node crashes or becomes unreachable, the cluster agrees on a single consistent state. However, single-group Raft does not scale well.'
-tags: ['distributed-systems', 'Raft', 'consensus', 'architecture', 'cockroachDB', 'Redpanda', 'YugabyteDB', 'TiKV']
+tags: ['distributed-systems', 'raft', 'consensus', 'architecture', 'cockroachdb', 'redpanda', 'yugabytedb', 'tikv']
 showToc: true
 ---
  

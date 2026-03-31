@@ -3,7 +3,7 @@ layout: ../../layouts/BlogPost.astro
 title: 'A Guide to Using Built-in Profiling Tools in Go'
 date: '2025-10-07 11:00 MDT'
 description: 'Profiling helps you identify where your program spends time and memory. Go provides built-in tools to collect and analyze this data. This guide covers profiling, benchmarks, and tracing, including examples and instructions for interpreting results.'
-tags: ['go', 'cli', 'pprof', 'benchmarks']
+tags: ['go', 'cli', 'pprof', 'benchmarks', 'profiling']
 showToc: true
 ---
 

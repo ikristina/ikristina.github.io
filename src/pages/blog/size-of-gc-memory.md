@@ -3,7 +3,7 @@ layout: ../../layouts/BlogPost.astro
 title: How Go Decides When to Garbage Collect
 date: 2026-02-10 07:00
 description: Learn the formula Go uses to trigger garbage collection and how to tune the GOGC variable to balance memory vs. CPU.
-tags: ['garbageCollector', 'memory', 'performance']
+tags: ['garbage-collector', 'memory', 'performance']
 showToc: false
 ---
 ## The Formula

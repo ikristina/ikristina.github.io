@@ -3,7 +3,7 @@ layout: ../../layouts/BlogPost.astro
 title: How to check if variables escape to the heap?
 date: 2026-02-09 09:20
 description: Learn how to identify when variables escape to the heap in Go using -gcflags and how to interpret the garbage collector's output.
-tags: ['performance', 'go', 'profiling', 'garbageCollector']
+tags: ['performance', 'go', 'profiling', 'garbage-collector']
 showToc: true
 ---
 ## The Command
