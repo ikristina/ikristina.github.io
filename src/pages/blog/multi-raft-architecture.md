@@ -7,41 +7,44 @@ description: 'The Raft consensus protocol is widely adopted for building fault-t
 tags: ['distributed-systems', 'raft', 'consensus', 'architecture', 'cockroachdb', 'redpanda', 'yugabytedb', 'tikv']
 showToc: true
 ---
- 
+
 **TL;DR** Single-group Raft routes all writes through one leader, which becomes a bottleneck at scale. Multi-Raft splits the keyspace into independent ranges, each with its own Raft group and leader, so writes can proceed in parallel. Real systems like CockroachDB, TiKV, YugabyteDB, and Redpanda all do this, but differ in how they handle the operational overhead of running thousands of consensus groups at once. The hard part isn't sharding the writes - it's atomically updating keys that land in different ranges.
 
 ## How single-group Raft works
 
 In single-group Raft, all nodes participate in **one** consensus group:
+
 * One node is elected **leader**, all others are followers.
 * Every write goes to the leader, which appends it to its **log** and replicates it to its followers.
-    * A *log* is an append-only sequence of commands (or entries) that represent every write operation, in order. Each entry gets an index and a **term** (which election cycle it was created in).
-    * The *log* is also used for node recovery - the restarted node replays its log to rebuild state.
-* Once a **quorum** (majority) of the nodes acknowledges the entry, it's committed and applied to the _state machine_.
-    * In the Raft context, a state machine is whatever system you're keeping consistent - a key-value store, a database, a configuration registry, etc. The idea is that if every node starts from the same initial state and applies the same log entries in the same order, they all end up with identical state. Raft's job is to guarantee that ordering.
-* If the _leader fails_, followers hold a new **election**. The node with the most up-to-date log wins.
+  * A *log* is an append-only sequence of commands (or entries) that represent every write operation, in order. Each entry gets an index and a **term** (which election cycle it was created in).
+  * The *log* is also used for node recovery - the restarted node replays its log to rebuild state.
+* Once a **quorum** (majority) of the nodes acknowledges the entry, it's committed and applied to the *state machine*.
+  * In the Raft context, a state machine is whatever system you're keeping consistent - a key-value store, a database, a configuration registry, etc. The idea is that if every node starts from the same initial state and applies the same log entries in the same order, they all end up with identical state. Raft's job is to guarantee that ordering.
+* If the *leader fails*, followers hold a new **election**. The node with the most up-to-date log wins.
 * Reads can be served from the *leader* (strong consistency) or *followers* (with caveats):
-    * If the reads are served from followers, they might be **stale**. A follower's log might lag behind the leader's. A follower has no way to know it's behind without checking the leader.
-    * To *mitigate* the stale reads, the following techniques might be employed: 
-        * **lease reads** (the leader holds a time-based lease guaranteeing it's still the leader), 
-        * **linearizable reads** (the leader confirms it's still the leader by getting a quorum heartbeat acknowledgment before serving the read, *adds latency*), 
-        * **follower reads with bounded staleness** (acceptable in some use cases where slightly stale data is tolerable, e.g. caches or analytics). 
-    * Most systems that allow *follower reads* expose this as an explicit consistency knob (e.g. CockroachDB's `AS OF SYSTEM TIME`, TiKV's follower read).
+  * If the reads are served from followers, they might be **stale**. A follower's log might lag behind the leader's. A follower has no way to know it's behind without checking the leader.
+  * To *mitigate* the stale reads, the following techniques might be employed:
+    * **lease reads** (the leader holds a time-based lease guaranteeing it's still the leader),
+    * **linearizable reads** (the leader confirms it's still the leader by getting a quorum heartbeat acknowledgment before serving the read, *adds latency*),
+    * **follower reads with bounded staleness** (acceptable in some use cases where slightly stale data is tolerable, e.g. caches or analytics).
+  * Most systems that allow *follower reads* expose this as an explicit consistency knob (e.g. CockroachDB's `AS OF SYSTEM TIME`, TiKV's follower read).
 
 Here are a few diagrams.
 
-#### Node State Machine (leader election)
+### Node State Machine (leader election)
 
 The diagram below shows the three states a Raft node can be in and how it moves between them:
 
 **Follower** - the default state. A node stays here as long as it keeps receiving heartbeats from a leader. If the heartbeat times out (leader is dead or unreachable), it promotes itself to Candidate.
 
 **Candidate** - the node votes for itself and asks others to vote for it. Three outcomes:
+
 * Wins a majority → becomes Leader
 * Hears from a node with a higher term (more recent election) → steps back to Follower
 * Nobody wins (split vote) → restarts the election and stays Candidate
 
 **Leader** - handles all writes and sends periodic heartbeats. Two ways to lose leadership:
+
 * Hears from a node with a higher term → steps down to Follower
 * Loses quorum (too many nodes unreachable) → steps down to Follower
 
@@ -57,7 +60,7 @@ flowchart LR
     Leader -->|loses quorum| Follower
 ```
 
-#### Log Replication Flow
+### Log Replication Flow
 
 ```mermaid
 sequenceDiagram
@@ -79,19 +82,21 @@ sequenceDiagram
     L-->>F2: Notify commit
 ```
 
-#### Log State Across Nodes
+### Log State Across Nodes
+
 Not all nodes have the same log at any given moment, followers can lag behind the leader, for example:
 
 | Node | Log |
-|---|---|
-| Leader | [1][2][3][4][5] |
-| Follower 1 | [1][2][3][4][5] |
-| Follower 2 | [1][2][3][4] |
-| Follower 3 | [1][2] |
+| --- | --- |
+| Leader | `[1][2][3][4][5]` |
+| Follower 1 | `[1][2][3][4][5]` |
+| Follower 2 | `[1][2][3][4]` |
+| Follower 3 | `[1][2]` |
 
 Raft **doesn't require** all nodes to be up to date, only a quorum (majority). Entries 1–5 are already committed because the leader + follower 1 + follower 2 = 3 out of 4 nodes acknowledged them. Follower 3 will catch up eventually.
 
 ### The problem with single-group Raft
+
 Every write serializes through a single leader. As throughput demands grow, that one leader becomes the ceiling - you can add more nodes, but they only improve fault tolerance, not write throughput.
 
 * **Hot key problem**. Even if your dataset is large and distributed across many machines, a single Raft leader means all writes to any key funnel through one node. One popular key can saturate the leader regardless of how much hardware you have.
@@ -102,7 +107,8 @@ Every write serializes through a single leader. As throughput demands grow, that
 The answer is to stop thinking of the cluster as one consensus group, and start thinking of it as many.
 
 ## Multi-Raft
-If you have petabytes of data, you can't put it into a single Raft log. The leader would become a **massive bottleneck**, and re-syncing a lagging follower would take weeks. 
+
+If you have petabytes of data, you can't put it into a single Raft log. The leader would become a **massive bottleneck**, and re-syncing a lagging follower would take weeks.
 
 Let's say we have 1PB of data and network bandwidth between the nodes ~ 1 Gbps (125 MB/s)
 
@@ -142,9 +148,9 @@ flowchart LR
 
 This unlocks what single-group Raft cannot provide:
 
-- **Horizontal write throughput** - multiple leaders accept writes simultaneously
-- **Bounded resync** - a lagging follower only needs to catch up on its range's log, not the entire dataset
-- **Geographic flexibility** - each range's leader can be placed close to the clients that write to it
+* **Horizontal write throughput** - multiple leaders accept writes simultaneously
+* **Bounded resync** - a lagging follower only needs to catch up on its range's log, not the entire dataset
+* **Geographic flexibility** - each range's leader can be placed close to the clients that write to it
 
 ### How it looks in practice
 
@@ -269,7 +275,7 @@ flowchart TB
 ([Redpanda Blog: Simplifying Raft replication in Redpanda](https://www.redpanda.com/blog/simplifying-raft-replication-in-redpanda))
 
 | System | Range name | Default size | Language | Scaling strategy |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | CockroachDB | Range | 512 MB | Go | Heartbeat coalescing + leaseholder reads |
 | TiKV | Region | 96 MB | Rust | Shared event loop, batch I/O |
 | YugabyteDB | Tablet | configurable | C++ | MultiRaft library, two-layer SQL/storage |
@@ -316,24 +322,30 @@ The common thread is **minimizing the coordination tax**, the overhead that cons
 
 ## Further reading
 
-**Raft**
-- [In Search of an Understandable Consensus Algorithm](https://raft.github.io/raft.pdf) - Diego Ongaro & John Ousterhout (the original paper)
-- [The Raft Consensus Algorithm](https://raft.github.io) - interactive visualizations
+### Raft
 
-**CockroachDB**
-- [Scaling Raft](https://www.cockroachlabs.com/blog/scaling-raft/) - Ben Darnell, Cockroach Labs
-- [Parallel Commits: An atomic commit protocol for globally distributed transactions](https://www.cockroachlabs.com/blog/parallel-commits/) - Nathan VanBenschoten, Cockroach Labs
-- [Transaction Layer](https://www.cockroachlabs.com/docs/stable/architecture/transaction-layer) - CockroachDB docs (write intents, transaction records)
+* [In Search of an Understandable Consensus Algorithm](https://raft.github.io/raft.pdf) - Diego Ongaro & John Ousterhout (the original paper)
+* [The Raft Consensus Algorithm](https://raft.github.io) - interactive visualizations
 
-**TiKV**
-- [Building a Large-scale Distributed Storage System Based on Raft](https://tikv.org/blog/building-distributed-storage-system-on-raft/) - Edward Huang, TiKV
-- [Multi-Raft](https://tikv.org/deep-dive/scalability/multi-raft/) - TiKV deep dive
+### CockroachDB
 
-**YugabyteDB**
-- [How Does the Raft Consensus-Based Replication Protocol Work in YugabyteDB?](https://www.yugabyte.com/blog/how-does-the-raft-consensus-based-replication-protocol-work-in-yugabyte-db/) - Yugabyte
+* [Scaling Raft](https://www.cockroachlabs.com/blog/scaling-raft/) - Ben Darnell, Cockroach Labs
+* [Parallel Commits: An atomic commit protocol for globally distributed transactions](https://www.cockroachlabs.com/blog/parallel-commits/) - Nathan VanBenschoten, Cockroach Labs
+* [Transaction Layer](https://www.cockroachlabs.com/docs/stable/architecture/transaction-layer) - CockroachDB docs (write intents, transaction records)
 
-**Redpanda**
-- [Simplifying Redpanda Raft implementation](https://www.redpanda.com/blog/simplifying-raft-replication-in-redpanda) - Redpanda
+### TiKV
 
-**Cross-range transactions**
-- [Large-scale Incremental Processing Using Distributed Transactions and Notifications](https://research.google/pubs/large-scale-incremental-processing-using-distributed-transactions-and-notifications/) - Daniel Peng & Frank Dabek, Google (the Percolator paper)
+* [Building a Large-scale Distributed Storage System Based on Raft](https://tikv.org/blog/building-distributed-storage-system-on-raft/) - Edward Huang, TiKV
+* [Multi-Raft](https://tikv.org/deep-dive/scalability/multi-raft/) - TiKV deep dive
+
+### YugabyteDB
+
+* [How Does the Raft Consensus-Based Replication Protocol Work in YugabyteDB?](https://www.yugabyte.com/blog/how-does-the-raft-consensus-based-replication-protocol-work-in-yugabyte-db/) - Yugabyte
+
+### Redpanda
+
+* [Simplifying Redpanda Raft implementation](https://www.redpanda.com/blog/simplifying-raft-replication-in-redpanda) - Redpanda
+
+### Cross-range transactions
+
+* [Large-scale Incremental Processing Using Distributed Transactions and Notifications](https://research.google/pubs/large-scale-incremental-processing-using-distributed-transactions-and-notifications/) - Daniel Peng & Frank Dabek, Google (the Percolator paper)
