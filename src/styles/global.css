@@ -1023,6 +1023,37 @@ code {
   overflow-wrap: break-word;
 }
 
+/* Tables */
+article table,
+.blog-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.9rem;
+}
+
+article th,
+.blog-content th {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+article td,
+.blog-content td {
+  border: 1px solid #e2e8f0;
+  padding: 0.6rem 0.8rem;
+  vertical-align: top;
+}
+
+article tr:nth-child(even) td,
+.blog-content tr:nth-child(even) td {
+  background: #fdfdfd;
+}
+
 /* Mermaid diagram styles */
 .mermaid {
   margin: 2rem 0;

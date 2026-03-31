@@ -232,7 +232,7 @@ Unlike `pprof`, `go tool trace` opens a rich web-based UI showing a visual timel
 * Unbalanced or poor utilization of CPU cores
 * Latency bottlenecks across concurrent processes
 
-`go tool trace` gives you visibility within a single process. When latency spans multiple services, tools like [Datadog APM](https://www.datadoghq.com/product/apm/) and [AWS X-Ray](https://aws.amazon.com/xray/) fill the equivalent role: they stitch together traces across service boundaries so you can see where time is actually spent in a distributed call chain.
+`go tool trace` gives you visibility within a single process. When latency spans multiple services, tools like [Datadog APM](https://www.datadoghq.com/product/apm/) and [AWS X-Ray](https://aws.amazon.com/xray/) fill the equivalent role: they stitch together traces across service boundaries so you can see where time is actually spent in a distributed call chain. If you want profiling to be always-on rather than a manual capture, [Pyroscope](https://grafana.com/docs/pyroscope/latest/) samples pprof data continuously and stores it - see [Adding Full-Stack Observability to a Go Worker Pool](/blog/go-worker-pool-observability) for a full setup walkthrough.
 
 ## Takeaways
 
