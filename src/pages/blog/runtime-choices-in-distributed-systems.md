@@ -69,6 +69,8 @@ This only works if you control which OS thread runs on which core, and that it *
     * Linux kernel mechanisms. Instead of waiting for a network read to complete, the thread registers interest and keeps working. The kernel signals when data is ready. A blocked thread would waste the core it's pinned to.
 * Using lock-free queues for the rare cases where cross-core communication is needed
 
+This architecture assumes direct access to physical CPU cores. On most virtualized EC2 instance types, the hypervisor maps virtual CPUs to physical cores and may reschedule them outside your control. Redpanda recommends bare metal instances (such as `c5.metal` or `m7i.metal`) to get the hardware guarantees that thread-per-core depends on.
+
 You **cannot replicate this in Go**. The Go scheduler uses an **M:N model: it multiplexes goroutines (M) onto OS threads (N)** and moves them **between threads freely** to keep all threads busy. A goroutine that starts executing on core 0 may resume on core 3 after the next scheduling point. `runtime.LockOSThread()` pins a goroutine to one OS thread, but that OS thread is still scheduled by the kernel across all available cores. There is no stable "this goroutine always runs on this physical core" guarantee.
 
 ```mermaid
@@ -89,6 +91,8 @@ flowchart TB
 Even if you forced Go goroutines onto fixed OS threads, the GC would still need to stop all goroutines, including your pinned ones, to scan the heap.
 
 Redpanda isn't the only one. Datadog's [Monocle](https://www.datadoghq.com/blog/engineering/rust-timeseries-engine/), their Rust-based timeseries engine, uses the same model: one storage shard per CPU core, each running on its own single-threaded Tokio runtime with no cross-shard locking. Each shard owns its private memtable and never touches another shard's data.
+
+[AWS Managed Streaming for Apache Kafka (MSK)](https://aws.amazon.com/msk/) runs standard Apache Kafka on the JVM. It inherits Kafka's GC characteristics rather than Redpanda's thread-per-core model. If tail latency is a primary concern, that runtime difference is worth factoring into the choice.
 
 ## Rust: no GC, memory safety at compile time
 

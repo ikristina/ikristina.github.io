@@ -205,8 +205,12 @@ It's overkill when:
 - Tasks are CPU-bound and you're already at `GOMAXPROCS` concurrency
 - You don't need results at all (fire-and-forget has simpler patterns)
 
+When tasks need to cross service boundaries, the same pattern applies at a larger scale. [Amazon SQS](https://aws.amazon.com/sqs/) plays the role of the jobs channel: a durable queue that independent workers pull from, with queue depth standing in for channel buffer length as the backpressure signal. Stripe uses this pattern for webhook delivery: the queue absorbs spikes, workers drain it at a controlled rate, and a slow or down merchant endpoint causes queue depth to grow rather than the caller blocking.
+
 The full source for this project is at [github.com/ikristina/go-worker-pool](https://github.com/ikristina/go-worker-pool).
 
 ## What's Next
 
 This is the foundation. The next iteration will add Prometheus metrics (queue depth, job latency histogram, worker utilization), a proper `Pool` struct with explicit `Shutdown` and `ShutdownNow` modes, and retry with exponential backoff and <span class="def" data-def="Randomness added to retry wait times to prevent a thundering herd. Without jitter, all failing goroutines retry after the same delay and hit the server in another synchronized wave. With jitter, each retry waits a slightly different random duration, spreading load out over time.">jitter</span>. I also want to run a proper benchmark suite across different worker counts and use `go tool trace` to visualize the goroutine scheduling.
+
+If you need jobs to survive process restarts, [River](https://riverqueue.com) is worth a look. It's a Go job queue backed by PostgreSQL that ships with persistence, retry, scheduling, and a proper pool abstraction - everything this implementation would grow into if you kept adding features. [Sidekiq](https://sidekiq.org/) (Ruby) and [Celery](https://docs.celeryq.dev/) (Python) solve the same problem in their respective ecosystems.

@@ -176,6 +176,8 @@ Use them when:
 - The latency savings are **meaningful relative to total request time**
 - You're on a **hot path** that handles thousands of requests per second
 
+A common example is a service that aggregates results from multiple external APIs: a pricing check, an inventory lookup, and a fraud score, all independent and each taking 30-100ms. Sequential calls compound that latency. Parallel calls collapse it to the slowest one.
+
 Skip them when:
 - One or both operations are **fast** (in-memory cache, local database, sub-ms responses)
 - The savings are **microseconds** on a request that takes milliseconds

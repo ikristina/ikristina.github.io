@@ -144,13 +144,13 @@ Showing nodes accounting for 90% of 2s total
 
 * **cum**: Cumulative time spent in the function and all functions it calls
 
-Focus on functions with high **cumulative time** to target optimizations.
+Focus on functions with high *cumulative time* to target optimizations.
 
 ### Interpreting Heap Profiles
 
 A heap profile shows which parts of the program allocate the most memory. Memory profiling records the stack trace whenever a heap allocation happens. The profiling library samples calls to the internal memory allocation routines, usually recording about one event per 512KB of allocated memory (this can be adjusted).
 
-It **doesn't** track **stack** allocations because they are considered free. The Go compiler uses an algorithm called "escape analysis" to decide if a value should be created on the stack or the heap. **Only constructions on the heap are classified as allocations.** This is important because the main goal of optimizing memory usage is to reduce the load on the **garbage collector (GC)**. Reducing allocations shortens the duration of collections and prevents the GC from causing high latency in the running application.
+It *doesn't* track *stack* allocations because they are considered free. The Go compiler uses an algorithm called "escape analysis" to decide if a value should be created on the stack or the heap. *Only constructions on the heap are classified as allocations.* This is important because the main goal of optimizing memory usage is to reduce the load on the *garbage collector (GC)*. Reducing allocations shortens the duration of collections and prevents the GC from causing high latency in the running application.
 
 Once a profile log is created (e.g. `mem.out`), use the go tool pprof to read it.
 
@@ -232,13 +232,15 @@ Unlike `pprof`, `go tool trace` opens a rich web-based UI showing a visual timel
 * Unbalanced or poor utilization of CPU cores
 * Latency bottlenecks across concurrent processes
 
+`go tool trace` gives you visibility within a single process. When latency spans multiple services, tools like [Datadog APM](https://www.datadoghq.com/product/apm/) and [AWS X-Ray](https://aws.amazon.com/xray/) fill the equivalent role: they stitch together traces across service boundaries so you can see where time is actually spent in a distributed call chain.
+
 ## Takeaways
 
 1. **Profile Before Optimizing:** The most critical step is to identify bottlenecks using tools like `go tool pprof`. Never guess what is slow, measure it first to focus your efforts on the right areas.
 
-2. **Prioritize Simple Data Structures:** As demonstrated in the classic Go profiling blog post (the `havlak` benchmark), CPU profiles often reveal performance degradation due to inefficient use of complex data types, such as Go's `map`. The takeaway is that **"There's no reason to use a map when an array or slice will do"** for indexed access or simple sets. Switching from maps to slices can significantly improve runtime.
+2. **Prioritize Simple Data Structures:** As demonstrated in the classic Go profiling blog post (the `havlak` benchmark), CPU profiles often reveal performance degradation due to inefficient use of complex data types, such as Go's `map`. The takeaway is that *"There's no reason to use a map when an array or slice will do"* for indexed access or simple sets. Switching from maps to slices can significantly improve runtime.
 
-3. **Minimize Allocation to Reduce GC Pressure:** If the CPU profile shows high time spent in `runtime.mallocgc`, your program is memory-bound. The memory profile helps pinpoint code sections responsible for allocating the most memory. The general principle is that the **fastest program is often the one that makes the fewest memory allocations**. Reducing allocations minimizes garbage collector (GC) work.
+3. **Minimize Allocation to Reduce GC Pressure:** If the CPU profile shows high time spent in `runtime.mallocgc`, your program is memory-bound. The memory profile helps pinpoint code sections responsible for allocating the most memory. The general principle is that the *fastest program is often the one that makes the fewest memory allocations*. Reducing allocations minimizes garbage collector (GC) work. In *Lambda functions*, fewer allocations also directly lower peak memory usage, which *reduces cost per invocation*.
 
 4. **Implement Memory Reuse for Inner Loops:** Even necessary bookkeeping structures can generate significant allocations if created repeatedly in inner loops. Consider object pooling (like `sync.Pool`) or reusing buffers to minimize GC pressure.
 

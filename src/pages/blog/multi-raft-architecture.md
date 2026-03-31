@@ -97,7 +97,7 @@ Every write serializes through a single leader. As throughput demands grow, that
 * **Hot key problem**. Even if your dataset is large and distributed across many machines, a single Raft leader means all writes to any key funnel through one node. One popular key can saturate the leader regardless of how much hardware you have.
 * The leader is a **single point of CPU/network pressure**. It must send *AppendEntries* to every follower for every write. With many followers, this fan-out becomes expensive.
 * **Snapshots and log compaction**. As the log grows unboundedly, compaction becomes a heavyweight operation that competes with normal leader duties.
-* **Geographic distribution** is hard. Placing followers in distant regions increases *replication latency*, which directly hurts write commit latency since the leader waits for a quorum ACK.
+* **Geographic distribution** is hard. Placing followers in distant regions increases *replication latency*, which directly hurts write commit latency since the leader waits for a quorum ACK. Amazon RDS Multi-AZ is a familiar instance of this: it places a synchronous standby in a separate availability zone for failover, but all writes still route through a single primary.
 
 The answer is to stop thinking of the cluster as one consensus group, and start thinking of it as many.
 
@@ -293,7 +293,9 @@ Multi-Raft gives you independent consensus groups per range. A write to range 1 
 
 Take a bank transfer: debit account A in range 1, credit account B in range 2. Both changes must either commit or roll back together. There is no Raft group that spans both ranges. Each one only knows about its own log.
 
-The standard answer is **two-phase commit (2PC)**:
+DynamoDB faces the same problem. Its `TransactWriteItems` API provides ACID transactions across multiple items in different partitions, but [the 2PC mechanism requires two operations per item](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-capacity-handling) (one prepare, one commit), so each transactional write consumes twice the capacity units of a standard write. That is the cost of coordination, not a surcharge.
+
+**Two-phase commit (2PC)**:
 
 1. **Prepare**: A transaction coordinator sends a "prepare" to all involved range leaders. Each range tentatively locks the rows and votes yes or no.
 2. **Commit**: If all ranges voted yes, the coordinator sends "commit." If any voted no, it sends "abort."
