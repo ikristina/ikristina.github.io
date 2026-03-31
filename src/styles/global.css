@@ -19,7 +19,8 @@ body {
 .main-content {
   flex: 3;
   max-width: 868px;
-  width: 868px;
+  width: 100%;
+  min-width: 0;
 }
 
 .sidebar {
@@ -29,13 +30,14 @@ body {
 }
 
 @media (max-width: 768px) {
-  body {
+  .content-wrapper {
     flex-direction: column;
     gap: 2rem;
   }
 
   .sidebar {
     min-width: auto;
+    width: 100%;
   }
 }
 
@@ -753,6 +755,20 @@ li .description {
   max-width: 45%;
 }
 
+@media (max-width: 540px) {
+  .post-nav {
+    flex-direction: column;
+  }
+
+  .nav-link {
+    max-width: 100%;
+  }
+
+  .nav-link.next {
+    margin-left: 0;
+  }
+}
+
 .nav-link:hover {
   border-color: #38a169;
   background: #f7fafc;
@@ -884,7 +900,7 @@ main > ul > li > a {
 }
 
 .search-input {
-  width: 400px;
+  width: min(400px, 100%);
   padding: 0.5rem;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
