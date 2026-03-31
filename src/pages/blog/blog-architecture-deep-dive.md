@@ -399,6 +399,10 @@ flowchart TD
 - Dependent on GitHub
 - Limited customization
 
+### Analytics
+
+The blog uses [GoatCounter](https://www.goatcounter.com/) for privacy-friendly analytics. It tracks page views without cookies, collects no personal data, and is GDPR-compliant out of the box. A single script tag is all it takes to set up, and the dashboard shows which posts are being read without any of the surveillance overhead of Google Analytics.
+
 ## Deployment Pipeline
 
 ```mermaid
@@ -469,7 +473,7 @@ graph TB
     end
     
     subgraph Monitoring["Monitoring"]
-        J[GitHub Pages analytics]
+        J[GoatCounter analytics]
         K[RSS feed validation]
         L[Search functionality testing]
     end

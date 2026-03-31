@@ -372,7 +372,7 @@ graph TB
     end
     
     subgraph Monitoring["Monitoring"]
-        J[GitHub Pages analytics]
+        J[GoatCounter analytics]
         K[RSS feed validation]
         L[Search functionality testing]
     end
