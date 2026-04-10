@@ -247,39 +247,46 @@ nav {
   color: white;
 }
 
-/* Admonitions */
-.admonition {
+/* Admonitions & Markdown Alerts */
+.admonition, .markdown-alert {
   margin: 1.5rem 0;
   padding: 1rem;
   border-radius: 6px;
   border-left: 4px solid;
 }
 
-.admonition-header {
+.admonition-header, .markdown-alert-title {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
+  margin-top: 0 !important;
 }
 
 .admonition-icon {
   font-size: 1.1rem;
 }
+.markdown-alert-title svg {
+  height: 1.25rem;
+  width: 1.25rem;
+  display: inline-block;
+  fill: currentColor;
+}
 
-.admonition.info {
+.admonition.info, .markdown-alert-note {
   background: #f0f9ff;
   border-left-color: #0ea5e9;
   color: #0c4a6e;
 }
 
-.admonition.warning {
+.admonition.warning, .markdown-alert-warning {
   background: #fffbeb;
   border-left-color: #f59e0b;
   color: #92400e;
 }
 
-.admonition.danger {
+.admonition.danger, .markdown-alert-important, .markdown-alert-caution {
   background: #fef2f2;
   border-left-color: #ef4444;
   color: #991b1b;
@@ -291,7 +298,7 @@ nav {
   color: #334155;
 }
 
-.admonition.idea {
+.admonition.idea, .markdown-alert-tip {
   background: #f0fdf4;
   border-left-color: #22c55e;
   color: #166534;

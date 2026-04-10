@@ -4,7 +4,8 @@ A personal blog about Go programming, software development, and random thoughts.
 
 ## 🚀 Features
 
-### Recent Updates (2026-02-09)
+### Recent Updates (2026-04-07)
+- **Markdown Callouts**: Added native support for GitHub-style Markdown alerts (`> [!note]`) using `remark-github-blockquote-alert` and custom CSS mappings.
 - **LaTeX Math Support**: Added full support for mathematical formulas using KaTeX (`$E=mc^2$`).
 - **Obsidian Integration**: Added templates and ignore rules for better Obsidian workflow.
 
@@ -19,6 +20,7 @@ A personal blog about Go programming, software development, and random thoughts.
 - **Post Navigation**: Previous/next links between posts
 - **Table of Contents**: Optional TOC generation for long posts
 - **Code Syntax Highlighting**: Shiki with copy buttons and language labels
+- **Markdown Callouts**: Support for GitHub-style alerts (`> [!info]`, `> [!warning]`) mapped to custom themes
 - **Comments System**: Powered by [Giscus](https://giscus.app/) using GitHub Discussions
 - **Social Media SEO**: Open Graph and Twitter Card meta tags with automatic first image extraction
 - **Search Engine Friendly**: Sitemap and proper meta tags
@@ -35,7 +37,7 @@ A personal blog about Go programming, software development, and random thoughts.
 - **Analytics**: [GoatCounter](https://www.goatcounter.com/) - Privacy-friendly tracking
 - **Fonts**: Google Fonts (Courier Prime, Libre Baskerville, Source Serif Pro)
 - **Deployment**: GitHub Pages with GitHub Actions
-- **Content**: Markdown with frontmatter
+- **Content**: Markdown with frontmatter and GitHub-style alerts
 
 ## 🛠️ Development
 
@@ -73,6 +75,17 @@ Your post content here...
 ```
 
 **Image for Social Sharing**: If no `image` is specified, the system automatically uses the first image found in your post content for social media previews.
+
+### Callouts (Admonitions)
+You can include styled callouts in your posts using standard GitHub-style Markdown syntax:
+```markdown
+> [!note]
+> This is a helpful note!
+
+> [!warning]
+> This is a warning message.
+```
+Supported types: `note` (or `info`), `warning`, `important` (or `danger`), `tip` (or `idea`), `caution`.
 
 ## 🔍 Search
 
