@@ -2,6 +2,7 @@
 layout: ../../layouts/BlogPost.astro
 title: 'How MVCC Works and Why Databases Use It'
 date: '2026-04-21 20:00 MDT'
+draft: true
 description: 'Multi-version concurrency control lets readers and writers proceed without blocking each other. This post explains how it works from first principles, and how PostgreSQL, CockroachDB, and MySQL InnoDB each implement it.'
 tags: ['databases', 'mvcc', 'postgres', 'concurrency']
 showToc: true
