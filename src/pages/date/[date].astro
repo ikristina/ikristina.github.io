@@ -13,7 +13,7 @@ export async function getStaticPaths() {
   const dates = new Set();
   posts.forEach(post => {
     if (post.frontmatter.date) {
-      const dateOnly = new Date(post.frontmatter.date).toISOString().split('T')[0];
+      const dateOnly = String(post.frontmatter.date).split(' ')[0];
       dates.add(dateOnly);
     }
   });
@@ -22,7 +22,7 @@ export async function getStaticPaths() {
     params: { date },
     props: { 
       posts: posts.filter(post => {
-        const postDateOnly = new Date(post.frontmatter.date).toISOString().split('T')[0];
+        const postDateOnly = String(post.frontmatter.date).split(' ')[0];
         return postDateOnly === date;
       }),
       date,

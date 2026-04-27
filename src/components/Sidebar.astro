@@ -18,7 +18,7 @@ const tags = Object.entries(tagCounts)
   .map(([tag, count]) => ({ tag, count }))
   .sort((a, b) => a.tag.localeCompare(b.tag));
 
-const postDates = posts.map((p) => p.frontmatter.date).filter(Boolean);
+const postDates = posts.map((p) => String(p.frontmatter.date).split(' ')[0]).filter(Boolean);
 ---
 
 <aside class="sidebar">
@@ -151,13 +151,7 @@ const postDates = posts.map((p) => p.frontmatter.date).filter(Boolean);
       d.setDate(d.getDate() + i);
 
       const dateStr = getLocalYYYYMMDD(d);
-      const hasPost = posts.some((p) => {
-        const postDate = new Date(p);
-        return (
-          !isNaN(postDate.getTime()) &&
-          getLocalYYYYMMDD(postDate) === dateStr
-        );
-      });
+      const hasPost = posts.includes(dateStr);
       const isToday =
         d.getDate() === today.getDate() &&
         d.getMonth() === today.getMonth() &&
