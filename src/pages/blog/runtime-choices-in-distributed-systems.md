@@ -4,6 +4,7 @@ title: 'Runtime Choices in Distributed Systems'
 date: '2026-03-25 15:30 MDT'
 draft: false
 description: 'The Raft algorithm is language-agnostic, but the runtime underneath it is not. GC pauses, CPU scheduling, and memory models shape which implementation strategies are even possible.'
+image: '/images/runtime-choice-distributed-systems.png'
 tags: ['distributed-systems', 'go', 'rust', 'performance', 'concurrency', 'garbage-collector', 'raft', 'cockroachdb', 'redpanda', 'tikv']
 showToc: true
 ---

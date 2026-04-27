@@ -4,7 +4,7 @@ import Header from '../../components/Header.astro';
 import Sidebar from '../../components/Sidebar.astro';
 
 export async function getStaticPaths() {
-  const allPosts = await Astro.glob('../blog/*.md');
+  const allPosts = Object.values(await import.meta.glob('../blog/*.md', { eager: true }));
   const now = new Date();
   const posts = allPosts.filter(post => 
     new Date(post.frontmatter.date) <= now && !post.frontmatter.draft
