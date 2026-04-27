@@ -598,3 +598,79 @@ OpenTelemetry is a standard, not a backend, so it works with all of the trace op
 - Profiles: produced by `github.com/grafana/pyroscope-go`, pushed to Pyroscope, viewed as flame graphs in Grafana
 
 Each signal serves a different role. Metrics tell you *something is wrong*. Logs tell you *what happened*. Traces tell you *where time was spent per request*. Profiles tell you *which functions are hot across all requests*. Together in Grafana, you can jump from a metric spike → logs at that timestamp → trace for a specific job → flame graph showing the exact code path that caused it.
+
+<div class="quiz-widget">
+  <div class="quiz-header">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    Knowledge Check <span class="quiz-progress"></span>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">When tracking the total number of jobs processed in Prometheus, why should you use a Counter instead of a Gauge?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Gauges cannot be labeled, whereas Counters support labels like status="success".</div></div>
+      <div class="quiz-option" data-letter="B"><div>Gauges only track integers, while Counters can track floats.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Counters strictly go up, making them mathematically safe to use with rate() in PromQL, whereas Gauges go up and down.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Counters automatically track job duration in buckets.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Because Counters never decrease (except on restarts), PromQL's `rate()` function can accurately calculate per-second throughput.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. A Gauge is for values that fluctuate (like queue depth or active workers). A Counter only increments, making it the only safe choice for calculating rates over time.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">How does Loki dramatically reduce storage costs compared to traditional log aggregators like Elasticsearch?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>It automatically deletes logs older than 7 days.</div></div>
+      <div class="quiz-option" data-letter="B"><div>It only indexes labels (like job="go-worker-pool") instead of full-text indexing the log content itself.</div></div>
+      <div class="quiz-option" data-letter="C"><div>It compresses logs using a proprietary binary format before storing them.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It only stores logs that contain the word "error" or "fatal".</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Full-text indexing is incredibly expensive at scale. Loki treats logs like Prometheus metrics, indexing only the labels and doing brute-force regex scans on the content when you query it.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. Loki avoids full-text indexing entirely. It only indexes the metadata labels, which makes ingestion and storage incredibly cheap.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">In OpenTelemetry, what happens if you forget to call <code>span.End()</code> on a trace span?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>The span will stay open indefinitely and block the Go garbage collector.</div></div>
+      <div class="quiz-option" data-letter="B"><div>The span is sent to the exporter immediately, but its duration is recorded as zero.</div></div>
+      <div class="quiz-option" data-letter="C"><div>The span is never exported to the backend, resulting in silent data loss.</div></div>
+      <div class="quiz-option" data-letter="D"><div>The span will automatically close after 30 seconds.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> A span is buffered in memory until `End()` is called. If you forget to call it, the trace is never serialized and never reaches Tempo.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. The OpenTelemetry SDK requires `span.End()` to trigger the export process. Without it, the span is lost forever.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">How does continuous profiling with Pyroscope differ from traditional profiling with <code>go tool pprof</code>?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Pyroscope only measures network I/O, while pprof measures CPU.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Pyroscope requires modifying the Go runtime source code to intercept function calls.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Pyroscope samples your app continuously and stores the history, whereas pprof requires a manual point-in-time capture.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Pyroscope cannot show flame graphs, it only outputs raw text metrics.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Because Pyroscope stores historical profiles, you can look at the flame graph for exactly the moment a CPU spike occurred yesterday, rather than hoping to catch it live with pprof.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. Traditional pprof requires you to actively capture a profile when an issue happens. Pyroscope records profiles constantly in the background, allowing you to look back in time.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">Which of the following correctly maps the observability signals to their primary purpose?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Metrics tell you <em>where time was spent per request</em>, Traces tell you <em>something is wrong</em>.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Logs tell you <em>which functions are hot across all requests</em>, Profiles tell you <em>what happened</em>.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Metrics tell you <em>something is wrong</em>, Logs tell you <em>what happened</em>, Traces tell you <em>where time was spent per request</em>, Profiles tell you <em>which functions are hot across all requests</em>.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Profiles tell you <em>something is wrong</em>, Metrics tell you <em>what happened</em>.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> This is the golden rule of the LGTM stack. Each signal covers a specific blind spot of the others.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. Metrics alert you to a problem. Logs give you the context. Traces break down the lifecycle of a single request. Profiles aggregate CPU/memory hotspots across everything.</div>
+  </div>
+
+  <div class="quiz-footer">
+    <button class="quiz-next-btn">Next Question →</button>
+  </div>
+  
+  <div class="quiz-results">
+    <h4>Quiz Complete!</h4>
+    <p>You scored <strong class="quiz-score">0</strong> out of <strong>5</strong>.</p>
+  </div>
+</div>

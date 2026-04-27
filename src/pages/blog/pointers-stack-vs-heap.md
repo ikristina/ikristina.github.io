@@ -192,3 +192,79 @@ Don't worry about passing the pointer around - it's just copying 8 bytes.
 *   Whether the data is already cached.
 
 The pointer itself is cheap. The **data it points to**, and **how you got it**, is what matters.
+
+<div class="quiz-widget">
+  <div class="quiz-header">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    Knowledge Check <span class="quiz-progress"></span>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">What is the primary misconception developers have about passing pointers in Go?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>That passing a pointer creates a deep copy of the underlying struct.</div></div>
+      <div class="quiz-option" data-letter="B"><div>That simply passing an existing pointer into a function triggers a new heap allocation.</div></div>
+      <div class="quiz-option" data-letter="C"><div>That pointers are always stored in the L1 CPU cache.</div></div>
+      <div class="quiz-option" data-letter="D"><div>That the Go garbage collector ignores pointer references.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Once data is allocated, passing a pointer to it around your app doesn't create new heap allocations. You're just passing the address.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. Passing an existing pointer just copies the memory address onto the stack. It does not cause a new heap allocation.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">When you pass a pointer to a function in a 64-bit Go program, exactly how much data is being copied onto the call stack?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>The exact byte size of the struct the pointer references.</div></div>
+      <div class="quiz-option" data-letter="B"><div>8 bytes (the size of a 64-bit memory address).</div></div>
+      <div class="quiz-option" data-letter="C"><div>0 bytes, because pointers are passed entirely in CPU registers.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It depends on whether the struct contains slices or maps.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> A pointer is just an integer representing a memory address. On a 64-bit system, that's exactly 8 bytes.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. A pointer is just a memory address, which is 8 bytes long on 64-bit architectures, regardless of how huge the underlying struct is.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="A">
+    <div class="quiz-question">How does the Go compiler decide whether a newly created struct belongs on the heap instead of the stack?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Through "Escape Analysis", which detects if the struct's lifetime outlives the function that created it.</div></div>
+      <div class="quiz-option" data-letter="B"><div>By checking if the struct is larger than 64KB.</div></div>
+      <div class="quiz-option" data-letter="C"><div>It relies entirely on a special <code>//go:heap</code> pragma comment.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Any struct created with the <code>&</code> operator is automatically sent to the heap.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> If you return a pointer from a function, the compiler knows the data must survive after the function's stack frame is destroyed. It "escapes" to the heap.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>A</strong>. The compiler runs Escape Analysis. If a reference to the data leaves the function (e.g. returning a pointer), it escapes to the heap.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">Is it possible to use pointers in Go without triggering any heap allocations?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>No. All pointers in Go are allocated on the heap by design.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Yes, but only if the garbage collector is explicitly disabled.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Yes, if the pointer and the data it points to never escape the local function scope, both can safely live on the stack.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Only if the pointer references a primitive type (like <code>int</code>) and not a struct.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> If a pointer is just used locally inside a function and isn't returned or saved globally, the compiler keeps both the data and the pointer on the stack.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. As long as the reference doesn't "escape" the function, the Go compiler is smart enough to allocate both the value and the pointer pointing to it entirely on the stack.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">When optimizing Go code that passes pointers heavily, where should you actually focus your attention?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Rewriting the functions to pass copies by value instead of using pointers to relieve stack pressure.</div></div>
+      <div class="quiz-option" data-letter="B"><div>The initial allocation of the data, and whether you're fetching more data than necessary.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Setting the pointer to <code>nil</code> immediately after the function call to assist the garbage collector.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Reducing the absolute number of function parameters.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Don't waste time worrying about passing an 8-byte pointer around. Worry about the network call, database query, or JSON deserialization that created the huge struct in the first place!</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. Passing the pointer is cheap. The performance killer is the work required to *create* the object the pointer points to (like parsing JSON or querying a DB).</div>
+  </div>
+
+  <div class="quiz-footer">
+    <button class="quiz-next-btn">Next Question →</button>
+  </div>
+  
+  <div class="quiz-results">
+    <h4>Quiz Complete!</h4>
+    <p>You scored <strong class="quiz-score">0</strong> out of <strong>5</strong>.</p>
+  </div>
+</div>

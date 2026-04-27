@@ -131,3 +131,67 @@ Most of the time you won't hit these limits. Go is a fine choice, and CockroachD
 
 **Rust concurrency model**
 - [Extensible Concurrency with Send and Sync](https://doc.rust-lang.org/book/ch16-04-extensible-concurrency-sync-and-send.html) - The Rust Programming Language book
+
+<div class="quiz-widget">
+  <div class="quiz-header">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    Knowledge Check <span class="quiz-progress"></span>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">Why is a Garbage Collection (GC) "stop-the-world" pause particularly dangerous for a distributed consensus protocol like Raft?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>It silently corrupts the memory heap holding the Raft log.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Because a frozen Leader cannot send heartbeats, causing Followers to mistakenly assume the Leader is dead and trigger an unnecessary election.</div></div>
+      <div class="quiz-option" data-letter="C"><div>It permanently drops incoming network packets at the OS level.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It forces the system to write to disk synchronously.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> To a Follower waiting on a network heartbeat, a Leader paused by the Garbage Collector looks exactly the same as a Leader whose power cord was pulled. It triggers a disruptive cluster election.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. During a stop-the-world GC pause, the Leader application stops executing code. It misses its heartbeat deadlines, causing the cluster to panic and vote for a new leader.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">How does Redpanda's Seastar framework achieve lock-free execution for its partitions?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>By relying on the OS to automatically clean up orphaned locks.</div></div>
+      <div class="quiz-option" data-letter="B"><div>By using a global distributed lock manager via ZooKeeper.</div></div>
+      <div class="quiz-option" data-letter="C"><div>By pinning exactly one OS thread to one physical CPU core and assigning partitions exclusively to that core, meaning no other core ever touches that data.</div></div>
+      <div class="quiz-option" data-letter="D"><div>By disabling all CPU caches to ensure immediate memory visibility.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> If only one thread on one core ever accesses a specific piece of memory, you don't need locks. This thread-per-core model eliminates massive amounts of contention overhead.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. Seastar pins threads to physical cores and partitions data perfectly among them. No sharing means no locking.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">Why can't you easily replicate a strict "thread-per-core" architecture using Go?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Because Go limits programs to a maximum of 4 CPU cores.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Because Go uses an M:N scheduler that freely multiplexes Goroutines across various OS threads, making it impossible to guarantee a Goroutine stays pinned to a specific physical core.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Because Go's <code>sync.Mutex</code> implementation is too slow.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Because Go does not support asynchronous network I/O.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Go's scheduler is incredible for general concurrency, but it intentionally abstracts away the hardware. A goroutine can wake up on a completely different CPU core than the one it went to sleep on.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. Go abstracts the OS threads away from the developer. The M:N scheduler moves goroutines around constantly to keep the CPU busy, defeating any attempt to isolate data to a single physical core.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">Why do systems like TiKV use Rust for their complex, highly-concurrent Raft event loops?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Because Rust completely disables the OS scheduler for maximum performance.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Because Rust's strict compiler and type system (<code>Send</code> and <code>Sync</code> traits) prevent entire classes of data race and thread-safety bugs at compile time.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Because Rust is the only language that supports the Raft protocol natively in its standard library.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Because Rust automatically scales up AWS instances when CPU usage spikes.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> In complex distributed systems, a data race can cause a split-brain scenario. Rust's compiler guarantees that if it compiles, you haven't accidentally shared state unsafely between threads.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. While Rust is fast, the primary draw for complex database internals is safety. The compiler simply won't let you build a program with a data race.</div>
+  </div>
+
+  <div class="quiz-footer">
+    <button class="quiz-next-btn">Next Question →</button>
+  </div>
+  
+  <div class="quiz-results">
+    <h4>Quiz Complete!</h4>
+    <p>You scored <strong class="quiz-score">0</strong> out of <strong>4</strong>.</p>
+  </div>
+</div>

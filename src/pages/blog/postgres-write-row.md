@@ -259,3 +259,103 @@ WAL and MVCC both deserve more space than one section can give them. I'm plannin
 - [The Internals of PostgreSQL](https://www.interdb.jp/pg/) by Hironobu Suzuki - free, comprehensive deep-dive on everything covered here. Chapters 1 (heap), 5 (WAL), and 9 (checkpoints) are the most relevant.
 - [Postgres Atomicity](https://brandur.org/postgres-atomicity) by Brandur Leach - focuses on how PostgreSQL guarantees atomicity through WAL and MVCC, with excellent diagrams.
 - [PostgreSQL internals documentation](https://www.postgresql.org/docs/current/internals.html) - the official reference for storage, WAL, and the query pipeline.
+
+<div class="quiz-widget">
+  <div class="quiz-header">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    Knowledge Check <span class="quiz-progress"></span>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">How does PostgreSQL handle new client connections by default?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>It spawns a new lightweight thread in a shared thread pool.</div></div>
+      <div class="quiz-option" data-letter="B"><div>It relies entirely on an external connection pooler like PgBouncer.</div></div>
+      <div class="quiz-option" data-letter="C"><div>The <code>postmaster</code> process calls <code>fork()</code> to create an entirely new OS process for each connection.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It multiplexes all connections through a single asynchronous event loop.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Postgres uses a process-per-connection model. This isolates memory safely but becomes expensive at scale, which is exactly why connection poolers exist.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. PostgreSQL uses a strict process-per-connection model by calling `fork()` in the OS.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">During the Query Rewrite phase, how does PostgreSQL handle queries against <code>VIEW</code>s?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>It treats the view as a temporary table and copies data into it before running the query.</div></div>
+      <div class="quiz-option" data-letter="B"><div>It uses the rule system to replace the view reference with the underlying query's parse tree.</div></div>
+      <div class="quiz-option" data-letter="C"><div>It materializes the view into a heap file before passing it to the planner.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It restricts <code>INSERT</code> operations on views entirely at the lexer stage.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Views in Postgres are fundamentally just rewrite rules! The query rewriter transparently replaces the view reference with the underlying query tree.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. Views are implemented via the rule system, which rewrites the parse tree before the planner ever sees it.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">What is the purpose of the <code>xmin</code> field in a PostgreSQL tuple header?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>It records the physical byte offset of the tuple within the 8KB page.</div></div>
+      <div class="quiz-option" data-letter="B"><div>It stores the timestamp of when the row was last modified.</div></div>
+      <div class="quiz-option" data-letter="C"><div>It records the ID of the transaction that inserted the row, which MVCC uses to determine if the row is visible to other transactions.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It tracks how many times the row has been read by <code>SELECT</code> queries.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> The `xmin` (inserting transaction ID) is the cornerstone of MVCC. It allows Postgres to hide uncommitted rows from other concurrent readers.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. `xmin` tracks the transaction ID. Postgres compares this ID against active transaction snapshots to determine visibility.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">What happens immediately when the Executor inserts a new row?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>It writes the row directly to the heap file on the physical disk.</div></div>
+      <div class="quiz-option" data-letter="B"><div>It writes the row into an 8KB page in the shared buffer pool and marks the page as "dirty".</div></div>
+      <div class="quiz-option" data-letter="C"><div>It stores the row in the WAL and waits for a checkpoint before placing it in the buffer pool.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It caches the row in the client connection's private memory space.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> The row goes into memory (`shared_buffers`). If the relevant 8KB page isn't in memory yet, it's loaded from disk, modified, and marked dirty.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. Direct disk writes for every row would be devastatingly slow. Postgres modifies pages in the in-memory shared buffer pool and marks them dirty to be flushed later.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="D">
+    <div class="quiz-question">How does PostgreSQL handle inserting a massive string that exceeds the 8KB page size limit?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>It automatically splits the row across multiple adjacent heap pages.</div></div>
+      <div class="quiz-option" data-letter="B"><div>It truncates the string to 8KB and issues a warning.</div></div>
+      <div class="quiz-option" data-letter="C"><div>It throws an "out of memory" error and rolls back the transaction.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It compresses the value and/or moves it to a separate TOAST table, storing only a pointer in the main tuple.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> TOAST (The Oversized-Attribute Storage Technique) handles massive values transparently under the hood, keeping the main heap file dense and efficient.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>D</strong>. Because pages are strictly 8KB, oversized values are transparently offloaded to a TOAST table, leaving only a pointer in the primary row.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">What is the primary purpose of a Checkpoint in PostgreSQL?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>To safely restart the database without losing active client connections.</div></div>
+      <div class="quiz-option" data-letter="B"><div>To flush dirty pages from the buffer pool to disk and record that position in the WAL, bounding crash recovery time.</div></div>
+      <div class="quiz-option" data-letter="C"><div>To immediately compress all TOAST tables to save disk space.</div></div>
+      <div class="quiz-option" data-letter="D"><div>To permanently delete all old row versions marked by <code>VACUUM</code>.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Checkpoints reconcile the dirty memory with the physical heap files. Once a checkpoint finishes, Postgres knows it never needs to replay WAL older than that point if it crashes.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. Checkpoints write dirty buffers to the heap files. This prevents the WAL from growing infinitely and speeds up crash recovery.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">Since an <code>INSERT</code> initially only modifies a page in the in-memory buffer pool, why isn't the data lost if the server crashes immediately after replying <code>INSERT 0 1</code>?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Because the OS automatically syncs RAM to disk on kernel panic.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Because PostgreSQL always flushes the buffer pool before replying to the client.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Because a durable record of the change was flushed to the Write-Ahead Log (WAL) before the transaction was acknowledged as committed.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Because the Checkpointer runs continuously in the background to prevent data loss.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> This is the magic of modern databases. Appending to the WAL is extremely fast sequential I/O. As long as the WAL record hits disk, your data is safe, even if the buffer pool is wiped out in a crash.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. The cardinal rule of databases: log it before you do it. The WAL is flushed to disk *before* Postgres tells you the transaction committed. On crash, the WAL is replayed to recreate the lost memory pages.</div>
+  </div>
+
+  <div class="quiz-footer">
+    <button class="quiz-next-btn">Next Question →</button>
+  </div>
+  
+  <div class="quiz-results">
+    <h4>Quiz Complete!</h4>
+    <p>You scored <strong class="quiz-score">0</strong> out of <strong>7</strong>.</p>
+  </div>
+</div>

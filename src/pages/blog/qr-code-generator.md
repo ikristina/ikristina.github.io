@@ -131,3 +131,55 @@ I guess, I didn't really need a white background, it just looks neater.
 * I could probably make it prettier but I am not a front-end client facing person so... No.
 
 Try it yourself: [https://github.com/ikristina/qr_gopher](https://github.com/ikristina/qr_gopher)
+
+<div class="quiz-widget">
+  <div class="quiz-header">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    Knowledge Check <span class="quiz-progress"></span>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">What architectural pattern does the Bubble Tea library use to structure terminal applications?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>MVC (Model-View-Controller)</div></div>
+      <div class="quiz-option" data-letter="B"><div>MVVM (Model-View-ViewModel)</div></div>
+      <div class="quiz-option" data-letter="C"><div>MVU (Model-View-Update)</div></div>
+      <div class="quiz-option" data-letter="D"><div>ECS (Entity Component System)</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Bubble Tea relies on the Elm-inspired Model-View-Update architecture. State lives in the Model, events trigger the Update function, and the View just renders whatever the Model looks like right now.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. Bubble Tea uses MVU, which enforces a strict, predictable flow of data and cleanly separates application logic from rendering.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">How is it possible to put a custom image (like a Gopher) in the center of a QR code without breaking the scanners?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>The image must be drawn using a special transparent alpha layer.</div></div>
+      <div class="quiz-option" data-letter="B"><div>By generating the QR code with a "High" error correction level (~30% redundancy), the missing data modules under the image can be mathematically recovered.</div></div>
+      <div class="quiz-option" data-letter="C"><div>The center of a QR code never contains data; it is reserved entirely for logos by the international standard.</div></div>
+      <div class="quiz-option" data-letter="D"><div>You have to manually calculate the position and avoid the finder patterns.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> High error correction adds up to 30% redundancy to the data modules. As long as your image doesn't cover the crucial corner "finder" patterns and stays within that 30% limit, scanners can still reconstruct the URL!</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. You rely entirely on the QR code's built-in error correction. By setting it to `qrcode.High`, it redundantly encodes the data, allowing the scanner to "guess" the missing pieces covered by your logo.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">How do you draw a perfectly circular image in Go using the standard <code>image/draw</code> package, which is fundamentally rectangle-based?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>By calling the undocumented <code>draw.Circle()</code> helper function.</div></div>
+      <div class="quiz-option" data-letter="B"><div>By creating an Alpha mask (opaque inside the radius, transparent outside) and using <code>draw.DrawMask</code> to apply it over the rectangular image bounds.</div></div>
+      <div class="quiz-option" data-letter="C"><div>By mathematically cropping the byte array of the PNG file before decoding it.</div></div>
+      <div class="quiz-option" data-letter="D"><div>You can't; you must use an external C library like ImageMagick.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Masking is the secret! You manually calculate the distance from the center pixel. If it's less than the radius, set alpha to 255 (visible). If it's outside, set alpha to 0 (transparent), then apply it with `DrawMask`.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. You use `image.NewAlpha` to create a mathematical circle of transparency/opacity, and pass it into `draw.DrawMask` to cut out your image perfectly.</div>
+  </div>
+
+  <div class="quiz-footer">
+    <button class="quiz-next-btn">Next Question →</button>
+  </div>
+  
+  <div class="quiz-results">
+    <h4>Quiz Complete!</h4>
+    <p>You scored <strong class="quiz-score">0</strong> out of <strong>3</strong>.</p>
+  </div>
+</div>

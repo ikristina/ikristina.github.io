@@ -166,3 +166,52 @@ req.body = Readable.from(body);
 In Go, explicit is better than implicit. The language forces us to acknowledge that reading a body has a cost (memory). By buffering the bytes and restoring the body with `io.NopCloser`, we are intentionally managing that memory so the application remains predictable and performant.
 
 One caveat worth keeping in mind: buffering the entire body is the right call for small JSON payloads, but the wrong call for large file uploads. For those, we're better off reading the body exactly once and designing the middleware chain so nothing upstream needs to re-read it.
+
+<div class="quiz-widget">
+  <div class="quiz-header">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    Knowledge Check <span class="quiz-progress"></span>
+  </div>
+
+  <div class="quiz-question-block" data-correct="A">
+    <div class="quiz-question">Why can't you simply read an HTTP request body twice in Go?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Because it is an <code>io.ReadCloser</code> stream, and the stream pointer doesn't automatically rewind after reaching EOF.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Because the Go runtime securely erases the memory immediately after the first read.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Because the client automatically drops the TCP connection after one read.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> A request body is just a stream of bytes. Once you consume it, the pointer is at the end. It doesn't buffer itself automatically because that could exhaust memory for huge files.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>A</strong>. Streams in Go (like `io.Reader`) are consumed as they are read. Once you hit the end of the file (EOF), subsequent reads yield nothing unless you recreate or rewind the stream.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">How do you prepare a request body so it can be read multiple times by downstream middleware?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>By calling <code>r.Body.Rewind()</code>.</div></div>
+      <div class="quiz-option" data-letter="B"><div>By reading it into a byte slice, creating a <code>bytes.NewReader</code>, wrapping it with <code>io.NopCloser</code>, and assigning it back to <code>r.Body</code>.</div></div>
+      <div class="quiz-option" data-letter="C"><div>By passing <code>http.KeepAlive(true)</code> to the server configuration.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> You must buffer the bytes into memory yourself, create a new stream from those bytes, and slap a fake `.Close()` method on it so it satisfies the interface.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. You have to explicitly read the bytes into memory and reconstruct a new `ReadCloser` for the downstream handlers.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">What is the primary purpose of <code>io.NopCloser</code>?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>To safely terminate a network connection without throwing panic errors.</div></div>
+      <div class="quiz-option" data-letter="B"><div>To satisfy the <code>io.ReadCloser</code> interface by providing a <code>.Close()</code> method that does nothing, allowing pure Readers to be used where Closers are required.</div></div>
+      <div class="quiz-option" data-letter="C"><div>To transparently compress data before sending it over the network.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Since `bytes.NewReader` only gives you a `Reader`, you can't assign it to `r.Body` (which needs a `ReadCloser`). `NopCloser` wraps it to add a dummy close method to satisfy the compiler.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. It's an adapter. It wraps a regular `io.Reader` and adds a dummy `.Close() error { return nil }` method so it fulfills the `io.ReadCloser` interface.</div>
+  </div>
+
+  <div class="quiz-footer">
+    <button class="quiz-next-btn">Next Question →</button>
+  </div>
+  
+  <div class="quiz-results">
+    <h4>Quiz Complete!</h4>
+    <p>You scored <strong class="quiz-score">0</strong> out of <strong>3</strong>.</p>
+  </div>
+</div>

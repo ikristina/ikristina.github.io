@@ -122,3 +122,51 @@ The GC was **manually triggered** rather than automatically triggered by memor
 
 • **Unknown Size:** Variables with sizes not known at compile time (e.g., slices created with a variable length `make([]byte, size)`) must be allocated on the heap.
 
+<div class="quiz-widget">
+  <div class="quiz-header">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    Knowledge Check <span class="quiz-progress"></span>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">Which compiler flag should you use to see if a variable escapes to the heap?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div><code>-escape=true</code></div></div>
+      <div class="quiz-option" data-letter="B"><div><code>-gcflags -m</code></div></div>
+      <div class="quiz-option" data-letter="C"><div><code>-trace=heap</code></div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> `go build -gcflags -m=2` will print out exactly what the escape analysis engine is deciding and why variables are leaking.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. You pass the `-m` flag to the compiler via `-gcflags` to print optimization and escape analysis decisions.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">Why does returning a pointer to a local variable (e.g., <code>return &user</code>) force it to escape to the heap?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Because the compiler automatically optimizes all structs to the heap.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Because the local variable's stack frame is destroyed when the function returns. If it stayed on the stack, the returned pointer would point to invalid memory.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Because pointers are strictly 64-bit and the stack only supports 32-bit variables.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> A function's stack frame is popped (destroyed) the moment the function finishes. Any pointers returned to the caller must point to the heap to survive!</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. Stack memory is only valid for the lifetime of the function call. Escaping to the heap is required so the data survives after the function returns.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">In the GC log <code>84->84->82 MB</code>, what does the final <code>82 MB</code> represent?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>The amount of memory successfully freed by the garbage collector.</div></div>
+      <div class="quiz-option" data-letter="B"><div>The maximum memory allowed by the OS before an OOM panic.</div></div>
+      <div class="quiz-option" data-letter="C"><div>The size of the "live heap" remaining after the garbage collection cycle has finished sweeping.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> That format represents: [Size Before GC] -> [Size after mark phase] -> [Live heap remaining]. 82 MB is the actual in-use memory your program currently needs!</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. The three numbers are: heap before GC, heap after GC (before sweep), and the live heap size.</div>
+  </div>
+
+  <div class="quiz-footer">
+    <button class="quiz-next-btn">Next Question →</button>
+  </div>
+  
+  <div class="quiz-results">
+    <h4>Quiz Complete!</h4>
+    <p>You scored <strong class="quiz-score">0</strong> out of <strong>3</strong>.</p>
+  </div>
+</div>

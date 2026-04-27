@@ -250,3 +250,91 @@ Unlike `pprof`, `go tool trace` opens a rich web-based UI showing a visual timel
 
 * [Go Diagnostics: Profiling](https://go.dev/doc/diagnostics#profiling) - the official overview of all diagnostic tools and when to use each
 * [Profiling Go Programs](https://go.dev/blog/pprof) - the Go blog's deep dive into the havlak benchmark, including the full optimization journey from maps to slices
+
+<div class="quiz-widget">
+  <div class="quiz-header">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    Knowledge Check <span class="quiz-progress"></span>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">Why should you avoid enabling multiple profiling flags (e.g., CPU and memory profiling) simultaneously when running tests?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Because the compiler will throw a syntax error.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Because the overhead of running multiple profilers at once can distort the measurements and produce inaccurate results.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Because Go's test runner can only output to one file at a time.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Because memory profiling automatically includes CPU profiling by default.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Profilers introduce overhead. Running the memory profiler slows down the application slightly, which would distort the results recorded by the CPU profiler if both were running at the same time.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. You should capture profiles independently because the mechanism of one profiler can skew the timings/measurements of another.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">What is the purpose of calling <code>b.ResetTimer()</code> in a Go benchmark function?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>To reset the garbage collector state before the test.</div></div>
+      <div class="quiz-option" data-letter="B"><div>To clear any cached memory allocations from previous test runs.</div></div>
+      <div class="quiz-option" data-letter="C"><div>To exclude the time spent setting up test data from the actual benchmark measurement.</div></div>
+      <div class="quiz-option" data-letter="D"><div>To force the benchmark to run for exactly one second.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> If you spend 2 seconds loading a giant JSON file to use as test data, you don't want that setup time skewing your algorithm's benchmark. Reset the timer right before the loop starts!</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. `b.ResetTimer()` zeroes out the clock and memory allocation counters so the expensive setup code isn't factored into the final `ns/op` results.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">When you import <code>net/http/pprof</code> into a live web application, what happens?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>It automatically starts writing profile logs to the local disk every 60 seconds.</div></div>
+      <div class="quiz-option" data-letter="B"><div>It intercepts all incoming HTTP requests and logs their latency to <code>stdout</code>.</div></div>
+      <div class="quiz-option" data-letter="C"><div>It installs diagnostic HTTP handlers under the <code>/debug/pprof/</code> endpoint so you can fetch profiles on demand.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It connects to an external Grafana instance to stream metrics.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Importing it for side-effects (`_ "net/http/pprof"`) magically mounts a suite of debugging endpoints to the default `http.DefaultServeMux`.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. The package automatically registers several HTTP endpoints that allow you to download CPU profiles, heap dumps, and goroutine states dynamically while the app is running.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="A">
+    <div class="quiz-question">Why does the Go memory profiler <em>only</em> track heap allocations and completely ignore stack allocations?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Because stack memory is automatically managed and considered "free" (it doesn't increase Garbage Collector pressure).</div></div>
+      <div class="quiz-option" data-letter="B"><div>Because the profiler doesn't have security permissions to read the CPU stack registers.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Because stack allocations are strictly limited to 8KB in Go.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Because stack memory is only used for <code>string</code> types, which are immutable.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Stack memory cleans itself up instantly when a function returns. Heap memory requires the Garbage Collector to spin up and clean it later. Therefore, the memory profiler only cares about the heap!</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>A</strong>. The entire purpose of memory optimization in Go is to reduce GC pressure. Since stack variables don't require garbage collection, the profiler ignores them.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">In the <code>pprof</code> CLI tool's <code>top</code> output, what is the difference between the <code>flat</code> and <code>cum</code> columns?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div><code>flat</code> is CPU time, <code>cum</code> is memory usage.</div></div>
+      <div class="quiz-option" data-letter="B"><div><code>flat</code> is the time spent <em>only</em> inside that specific function, while <code>cum</code> (cumulative) includes time spent in that function <em>plus</em> all the functions it called.</div></div>
+      <div class="quiz-option" data-letter="C"><div><code>flat</code> is the average time per call, <code>cum</code> is the total time across all calls.</div></div>
+      <div class="quiz-option" data-letter="D"><div><code>flat</code> measures Go code execution time, <code>cum</code> measures CGO and system call time.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> If function A takes 1 second, but spends 9 seconds waiting for function B to finish, A has a `flat` time of 1s, but a `cum` time of 10s.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. `flat` is the execution time of just the function's own instructions. `cum` includes the execution time of everything that function invoked.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="A">
+    <div class="quiz-question">When should you use <code>go tool trace</code> instead of <code>go tool pprof</code>?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>When you want to see exactly <em>when</em> events happened on a timeline (e.g., Goroutine scheduling and blocking) rather than just overall aggregate usage.</div></div>
+      <div class="quiz-option" data-letter="B"><div>When you need to profile memory allocations, as <code>pprof</code> only handles CPU.</div></div>
+      <div class="quiz-option" data-letter="C"><div>When you want to trace API requests across different microservices in a distributed system.</div></div>
+      <div class="quiz-option" data-letter="D"><div>When you are compiling for Windows, as <code>pprof</code> is Linux-only.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> `pprof` tells you *what* took the most time. `trace` gives you a visual timeline showing *when* goroutines executed, blocked, or yielded across your CPU cores.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>A</strong>. While `pprof` aggregates data to show hot spots, `trace` captures millisecond-by-millisecond execution timelines, which is crucial for debugging concurrency bottlenecks and latency spikes.</div>
+  </div>
+
+  <div class="quiz-footer">
+    <button class="quiz-next-btn">Next Question →</button>
+  </div>
+  
+  <div class="quiz-results">
+    <h4>Quiz Complete!</h4>
+    <p>You scored <strong class="quiz-score">0</strong> out of <strong>6</strong>.</p>
+  </div>
+</div>

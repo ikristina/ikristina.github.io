@@ -216,3 +216,79 @@ This is the foundation. [Adding Full-Stack Observability to a Go Worker Pool](/b
 What's still on the list: a proper `Pool` struct with explicit `Shutdown` and `ShutdownNow` modes, retry with exponential backoff and <span class="def" data-def="Randomness added to retry wait times to prevent a thundering herd. Without jitter, all failing goroutines retry after the same delay and hit the server in another synchronized wave. With jitter, each retry waits a slightly different random duration, spreading load out over time.">jitter</span>, and a benchmark suite across different worker counts.
 
 If you need jobs to survive process restarts, [River](https://riverqueue.com) is worth a look. It's a Go job queue backed by PostgreSQL that ships with persistence, retry, scheduling, and a proper pool abstraction - everything this implementation would grow into if you kept adding features. [Sidekiq](https://sidekiq.org/) (Ruby) and [Celery](https://docs.celeryq.dev/) (Python) solve the same problem in their respective ecosystems.
+
+<div class="quiz-widget">
+  <div class="quiz-header">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    Knowledge Check <span class="quiz-progress"></span>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">What is the primary danger of spawning an unbounded number of goroutines for concurrent network tasks?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>The Go runtime heavily penalizes programs with more than 1,000 goroutines.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Each goroutine actively consumes CPU even when waiting for network responses.</div></div>
+      <div class="quiz-option" data-letter="C"><div>You can easily exhaust memory or hit your OS's file descriptor limit before any responses come back.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Unbounded goroutines cannot safely return errors to the main thread.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Even though goroutines are lightweight, spawning 100,000 of them to make HTTP requests will almost immediately crash your app due to file descriptor limits or out-of-memory errors.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. The OS puts hard caps on how many open sockets (file descriptors) a process can hold. Unbounded concurrency will hit this limit almost instantly under load.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">How is backpressure achieved automatically in a Go worker pool using channels?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>The worker pool polls a special <code>runtime.GetBackpressure()</code> function before accepting new work.</div></div>
+      <div class="quiz-option" data-letter="B"><div>The producer blocks when trying to send on a full buffered channel, naturally preventing it from overwhelming the system.</div></div>
+      <div class="quiz-option" data-letter="C"><div>The Go garbage collector automatically slows down the producer when it detects high allocation rates.</div></div>
+      <div class="quiz-option" data-letter="D"><div>The workers send a "stop" signal back to the producer when they are busy.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> This is the beauty of Go channels. When the channel buffer is full, the sender physically cannot proceed until a worker pulls a job off the queue. Backpressure comes for free.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. Sending to a full channel blocks the sender. This blocking mechanism acts as automatic backpressure without any extra logic required.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">In the shutdown sequence, why is it critical to call <code>wg.Wait()</code> <em>before</em> closing the results channel?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Closing the results channel automatically terminates all running goroutines without letting them finish.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Calling <code>wg.Wait()</code> ensures all results are instantly printed to the console.</div></div>
+      <div class="quiz-option" data-letter="C"><div>If a worker is still running and tries to send a result to a closed channel, the program will panic.</div></div>
+      <div class="quiz-option" data-letter="D"><div>WaitGroups must always be reset to zero before any channel can be safely closed.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Sending on a closed channel is a guaranteed panic in Go. Waiting for the workers to finish guarantees that no one will attempt to write to the results channel ever again.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. Sending on a closed channel causes a panic. You must ensure all writers are completely finished (using `wg.Wait()`) before closing the channel they write to.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">In this pattern, what is the exact mechanism used to signal the workers to stop?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Sending a boolean <code>true</code> over a dedicated stop channel.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Canceling a context passed directly to the worker function.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Closing the jobs channel that the workers are ranging over.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Using a global atomic flag that the workers check in a loop.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> When you `close(jobs)`, the workers' `for job := range jobs` loop automatically terminates once the channel is drained. No explicit stop signals or atomic flags needed!</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. A `for ... range` loop on a channel automatically exits when the channel is closed and empty. Closing the jobs channel is the cleanest way to shut down workers.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="D">
+    <div class="quiz-question">In which of these scenarios would a worker pool be completely unnecessary overkill?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>You have millions of tasks and need to bound memory usage.</div></div>
+      <div class="quiz-option" data-letter="B"><div>You are hitting rate limits on a downstream API and need to control concurrency.</div></div>
+      <div class="quiz-option" data-letter="C"><div>The tasks involve massive file uploads and memory must be managed.</div></div>
+      <div class="quiz-option" data-letter="D"><div>You have a small, known number of independent fire-and-forget background tasks.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> If you only have a few tasks and you don't even need the results, just `go func()` them! A worker pool introduces channels and synchronization overhead that isn't worth it for trivial workloads.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>D</strong>. A worker pool adds real complexity. If the task count is small and you don't care about collecting results, simply spawning a few detached goroutines is significantly easier.</div>
+  </div>
+
+  <div class="quiz-footer">
+    <button class="quiz-next-btn">Next Question →</button>
+  </div>
+  
+  <div class="quiz-results">
+    <h4>Quiz Complete!</h4>
+    <p>You scored <strong class="quiz-score">0</strong> out of <strong>5</strong>.</p>
+  </div>
+</div>

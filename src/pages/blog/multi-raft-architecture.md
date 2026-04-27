@@ -349,3 +349,115 @@ The common thread is **minimizing the coordination tax**, the overhead that cons
 ### Cross-range transactions
 
 * [Large-scale Incremental Processing Using Distributed Transactions and Notifications](https://research.google/pubs/large-scale-incremental-processing-using-distributed-transactions-and-notifications/) - Daniel Peng & Frank Dabek, Google (the Percolator paper)
+
+<div class="quiz-widget">
+  <div class="quiz-header">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    Knowledge Check <span class="quiz-progress"></span>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">In the standard Raft protocol, what is the <em>only</em> way for a Follower to become a Leader?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>The current Leader sends a "transfer leadership" RPC directly to the Follower.</div></div>
+      <div class="quiz-option" data-letter="B"><div>The Follower must first transition to a Candidate and win an election by gathering a quorum of votes.</div></div>
+      <div class="quiz-option" data-letter="C"><div>A Follower with the longest uptime automatically promotes itself when the Leader dies.</div></div>
+      <div class="quiz-option" data-letter="D"><div>The network routing layer elects a new Leader based on latency metrics.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> There is no direct "Follower to Leader" path. A node must notice the Leader is gone, promote itself to Candidate, vote for itself, and secure a majority of cluster votes.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. A Follower must always transition to a Candidate state and actively campaign to win an election before becoming a Leader.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="A">
+    <div class="quiz-question">Why does adding more nodes to a single-group Raft cluster NOT increase write throughput?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Because every write must still be serialized through a single Leader node.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Because network bandwidth decreases logarithmically as more nodes are added.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Because Followers actively reject writes if there are too many nodes in the cluster.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Because Raft requires 100% of nodes to acknowledge a write before committing.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> In single-group Raft, that one Leader is the ceiling. Adding more nodes only improves fault tolerance (and potentially read throughput, if stale reads are allowed), but the single Leader remains the write bottleneck.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>A</strong>. All writes in single-group Raft must go through one Leader. No matter how many followers you add, that one Leader node limits how fast you can write.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">What is a major risk of allowing clients to read directly from a Follower node in standard Raft?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>The Follower might accidentally overwrite the data during the read.</div></div>
+      <div class="quiz-option" data-letter="B"><div>The Follower might return stale data because its log lags behind the Leader's log.</div></div>
+      <div class="quiz-option" data-letter="C"><div>The Follower will automatically trigger an unnecessary election storm.</div></div>
+      <div class="quiz-option" data-letter="D"><div>The Follower is forced to lock the entire database during the read.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Raft does not guarantee that every follower has the latest data at all times (only a quorum is required for commit). A follower might be lagging, meaning reads served from it will be stale.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. Because a quorum commit doesn't require *all* nodes to acknowledge a write, a follower might not have received the latest updates yet, leading to stale reads.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">How does CockroachDB prevent tens of thousands of independent Raft groups from overwhelming the network with heartbeat messages?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>It entirely disables heartbeats and relies on TCP keepalives instead.</div></div>
+      <div class="quiz-option" data-letter="B"><div>It coalesces all heartbeats between any two physical nodes into a single multiplexed RPC.</div></div>
+      <div class="quiz-option" data-letter="C"><div>It only sends heartbeats for groups that are actively processing writes.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It routes all heartbeats through a centralized "heartbeat server."</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Instead of sending 10,000 heartbeats between Node A and Node B for 10,000 different ranges, CockroachDB batches them together, reducing the network overhead to O(nodes) instead of O(ranges).</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. CockroachDB uses heartbeat coalescing to bundle the heartbeats of thousands of ranges into a single network request between physical nodes.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">What mechanism does TiKV use to efficiently manage thousands of Raft groups on a single node without causing massive OS thread contention?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>A strict thread-per-core architecture that pins each group to a specific CPU.</div></div>
+      <div class="quiz-option" data-letter="B"><div>A shared event loop that batches ready states and processes them together before writing to RocksDB.</div></div>
+      <div class="quiz-option" data-letter="C"><div>It uses Python's asyncio to multiplex the groups.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It delegates group management entirely to the Linux kernel using eBPF.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Instead of one thread per group, TiKV uses an event loop that collects all groups with pending work, processes them in a batch, and issues a single WriteBatch to RocksDB.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. TiKV avoids the "thread-per-group" problem by driving all Raft state machines through a highly optimized, shared Rust event loop.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="A">
+    <div class="quiz-question">How does Redpanda's approach to Multi-Raft execution differ from TiKV's shared event loop?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Redpanda uses a thread-per-core architecture (via Seastar) where each CPU exclusively owns a fixed set of partitions.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Redpanda uses a global lock around its shared event loop to prevent race conditions.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Redpanda runs each Raft group in its own isolated Docker container.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Redpanda relies on ZooKeeper to manage the state machines instead of Raft.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Built on the Seastar framework, Redpanda pins threads to CPU cores and assigns specific partitions to specific cores, eliminating context switching and lock contention entirely.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>A</strong>. Redpanda uses a strict thread-per-core model. A CPU core entirely owns its subset of Raft groups, meaning no locking or cross-thread synchronization is required.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">What causes the "election storm" problem in Multi-Raft clusters?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>When a network partition causes nodes to rapidly toggle between Leader and Follower.</div></div>
+      <div class="quiz-option" data-letter="B"><div>When the cluster administrator manually triggers elections too frequently.</div></div>
+      <div class="quiz-option" data-letter="C"><div>When a node holding thousands of Leaders crashes, causing thousands of Followers to hit their election timeouts simultaneously.</div></div>
+      <div class="quiz-option" data-letter="D"><div>When nodes with older logs repeatedly win elections over nodes with newer logs.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> A single node going down can sever the heartbeats for thousands of Raft groups at exactly the same time. All those followers wake up instantly and flood the network with RequestVote RPCs.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. Because one physical node can hold thousands of Raft Leaders, its death causes thousands of concurrent election timeouts across the cluster, flooding the network.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">Why is Two-Phase Commit (2PC) inherently difficult in a Multi-Raft architecture?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Because Raft logs are append-only and cannot store transactional lock metadata.</div></div>
+      <div class="quiz-option" data-letter="B"><div>If the transaction coordinator crashes between the "prepare" and "commit" phases, the ranges are left holding locks with no idea what to do.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Because 2PC requires a centralized hardware clock, which distributed systems don't have.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Because ranges are strictly forbidden from communicating with each other over the network.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> The classic 2PC failure mode is a dead coordinator. Systems like CockroachDB (transaction records) and TiKV (Percolator primary locks) solve this by writing the transaction's status into a replicated key so any node can verify the outcome if the coordinator dies.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. The danger of 2PC is a coordinator crashing mid-flight. Without a reliable mechanism to resolve stuck locks (like transaction records or primary keys), the database grinds to a halt.</div>
+  </div>
+
+  <div class="quiz-footer">
+    <button class="quiz-next-btn">Next Question →</button>
+  </div>
+  
+  <div class="quiz-results">
+    <h4>Quiz Complete!</h4>
+    <p>You scored <strong class="quiz-score">0</strong> out of <strong>8</strong>.</p>
+  </div>
+</div>

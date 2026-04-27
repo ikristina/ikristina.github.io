@@ -92,7 +92,7 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
         <div class="post-header">
           <h1>{title}</h1>
           <div class="post-meta">
-            <p><em>{date}</em> <span class="reading-time">📖 {readingTime} min read</span></p>
+            <p><time class="local-date" datetime={date}>{date}</time> <span class="reading-time">📖 {readingTime} min read</span></p>
             <div class="post-tags">
               {tags?.map((tag) => (
                 <a href={`/tags/${tag}`} class="tag">{tag}</a>
@@ -305,6 +305,125 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
             document.body.removeChild(popup);
           });
         });
+      });
+
+      // Initialize Generic Knowledge Quizzes
+      document.querySelectorAll('.quiz-widget').forEach(quiz => {
+        const questions = quiz.querySelectorAll('.quiz-question-block');
+        if (questions.length === 0) return;
+
+        let currentQIndex = 0;
+        let score = 0;
+        
+        const progressSpan = quiz.querySelector('.quiz-progress');
+        const nextBtn = quiz.querySelector('.quiz-next-btn');
+        const resultsBlock = quiz.querySelector('.quiz-results');
+        const scoreSpan = quiz.querySelector('.quiz-score');
+
+        function showQuestion(index) {
+          questions.forEach((q, i) => {
+            q.classList.toggle('active', i === index);
+          });
+          if (progressSpan) progressSpan.textContent = `(${index + 1}/${questions.length})`;
+          if (nextBtn) nextBtn.style.display = 'none';
+        }
+
+        questions.forEach((qBlock, index) => {
+          const options = qBlock.querySelectorAll('.quiz-option');
+          const correctLetter = qBlock.dataset.correct;
+          const successMsgHTML = qBlock.querySelector('.quiz-success-msg')?.innerHTML || '<strong>Correct! 🎉</strong>';
+          const errorMsgHTML = qBlock.querySelector('.quiz-error-msg')?.innerHTML || '<strong>Not quite.</strong>';
+          
+          let feedback = qBlock.querySelector('.quiz-feedback-box');
+          if (!feedback) {
+            feedback = document.createElement('div');
+            feedback.className = 'quiz-feedback-box';
+            qBlock.appendChild(feedback);
+          }
+          
+          let answered = false;
+          options.forEach(option => {
+            if (!option.querySelector('.quiz-option-letter')) {
+              const letter = option.dataset.letter;
+              if (letter) {
+                const letterSpan = document.createElement('div');
+                letterSpan.className = 'quiz-option-letter';
+                letterSpan.textContent = letter;
+                option.insertBefore(letterSpan, option.firstChild);
+              }
+            }
+            
+            option.addEventListener('click', () => {
+              if (answered) return;
+              answered = true;
+              
+              const isCorrect = option.dataset.letter === correctLetter;
+              if (isCorrect) score++;
+              
+              if (isCorrect) {
+                option.classList.add('correct');
+                feedback.innerHTML = successMsgHTML;
+                feedback.className = 'quiz-feedback-box success';
+              } else {
+                option.classList.add('incorrect');
+                const correctOpt = Array.from(options).find(o => o.dataset.letter === correctLetter);
+                if (correctOpt) correctOpt.classList.add('correct');
+                feedback.innerHTML = errorMsgHTML;
+                feedback.className = 'quiz-feedback-box error';
+              }
+              
+              options.forEach(opt => {
+                opt.style.cursor = 'default';
+                if (opt !== option && opt.dataset.letter !== correctLetter) {
+                  opt.style.opacity = '0.4';
+                }
+              });
+              
+              if (nextBtn) {
+                if (currentQIndex < questions.length - 1) {
+                  nextBtn.textContent = 'Next Question →';
+                } else {
+                  nextBtn.textContent = 'Finish Quiz';
+                }
+                nextBtn.style.display = 'block';
+              }
+            });
+          });
+        });
+
+        if (nextBtn) {
+          nextBtn.addEventListener('click', () => {
+            currentQIndex++;
+            if (currentQIndex < questions.length) {
+              showQuestion(currentQIndex);
+            } else {
+              questions.forEach(q => q.classList.remove('active'));
+              nextBtn.style.display = 'none';
+              if (resultsBlock) {
+                resultsBlock.style.display = 'block';
+                if (scoreSpan) scoreSpan.textContent = score;
+              }
+              if (progressSpan) progressSpan.textContent = `(Complete)`;
+            }
+          });
+        }
+
+        showQuestion(0);
+      });
+
+      // Localize dates to user's timezone
+      document.querySelectorAll('time.local-date').forEach(el => {
+        const d = new Date(el.getAttribute('datetime'));
+        if (!isNaN(d.getTime())) {
+          el.textContent = d.toLocaleString(undefined, {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            timeZoneName: 'short'
+          });
+        }
       });
     </script>
   </body>

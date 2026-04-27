@@ -109,3 +109,79 @@ The core durability mechanism across all these storage systems remains the same:
 - [RocksDB Write-Ahead Log](https://github.com/facebook/rocksdb/wiki/Write-Ahead-Log-%28WAL%29)
 - [Building a resilient data platform with WAL at Netflix](https://netflixtechblog.com/building-a-resilient-data-platform-with-write-ahead-log-at-netflix-127b6712359a)
 - *Designing Data-Intensive Applications* by Martin Kleppmann - Chapter 3 provides an incredible deep dive into storage engines and WAL.
+
+<div class="quiz-widget">
+  <div class="quiz-header">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    Knowledge Check <span class="quiz-progress"></span>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">What is the fundamental hardware problem that makes Write-Ahead Logging necessary?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>CPUs process data faster than RAM can store it.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Writes are not atomic, leading to torn pages and data corruption during a crash.</div></div>
+      <div class="quiz-option" data-letter="C"><div>Hard drives have a limited number of read/write cycles.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Network latency causes packets to arrive out of order.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> If power is lost while the disk is partially through flushing a sector, you get torn pages. A WAL ensures changes are safely recorded before modifying the actual data files.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. The core issue is that disk writes are not hardware-atomic. A mid-write crash causes torn pages, which corrupt the database.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">Why is writing to the WAL significantly faster than writing directly to the main database tables?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>The WAL only stores metadata, not actual payloads.</div></div>
+      <div class="quiz-option" data-letter="B"><div>The WAL bypasses the operating system's filesystem cache.</div></div>
+      <div class="quiz-option" data-letter="C"><div>The WAL is append-only, utilizing extremely fast sequential I/O instead of random I/O.</div></div>
+      <div class="quiz-option" data-letter="D"><div>The WAL is kept entirely in volatile RAM.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Sequential I/O is orders of magnitude faster than random I/O, even on modern NVMe drives, because the disk doesn't have to seek to specific locations.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. The WAL is an append-only log, meaning all writes are strictly sequential, which is incredibly fast compared to the random I/O required to update B-tree pages in place.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">In PostgreSQL, what does setting <code>synchronous_commit = off</code> do?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>It disables the WAL entirely to maximize throughput.</div></div>
+      <div class="quiz-option" data-letter="B"><div>It acknowledges the transaction immediately and flushes the WAL a split second later, risking a few milliseconds of data loss on a hard crash.</div></div>
+      <div class="quiz-option" data-letter="C"><div>It forces the database to write to both the WAL and the main heap file simultaneously.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It prevents autovacuum from running during heavy write loads.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> It trades absolute durability for raw speed. If the server loses power in that exact split second, you lose those transactions, but your database itself won't be corrupted.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. It tells Postgres to report success immediately and flush the WAL asynchronously, trading absolute durability for performance.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">How does modern SQLite's WAL mode improve database concurrency?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>It eliminates the need for any locking by storing each row in a separate file.</div></div>
+      <div class="quiz-option" data-letter="B"><div>It allows readers to read the main database file while writers append to the WAL, meaning they no longer block each other.</div></div>
+      <div class="quiz-option" data-letter="C"><div>It compresses write payloads so they can be transmitted over the network faster.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It partitions the database across multiple independent nodes.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> By separating active writes (in the WAL) from the established data (in the main file), readers and writers can operate simultaneously without locking each other out.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. Because writers only append to the WAL, readers can read from the main file uninterrupted. Readers and writers no longer block each other.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="A">
+    <div class="quiz-question">In a distributed key-value store like etcd, what additional role does the WAL play beyond local crash recovery?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>It serves as the distributed consensus mechanism, acting as the authoritative state of the cluster across multiple nodes.</div></div>
+      <div class="quiz-option" data-letter="B"><div>It automatically encrypts data before it is sent over the network.</div></div>
+      <div class="quiz-option" data-letter="C"><div>It garbage collects old versions of keys to save disk space.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It acts as a cache for frequently read queries.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> Under the Raft algorithm, the log is the authoritative state. A write is only committed once a quorum of nodes have safely appended it to their respective WALs.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>A</strong>. In systems using Raft (like etcd), the WAL serves as the distributed consensus mechanism. A transaction is committed when a majority of nodes have it in their WALs.</div>
+  </div>
+
+  <div class="quiz-footer">
+    <button class="quiz-next-btn">Next Question →</button>
+  </div>
+  
+  <div class="quiz-results">
+    <h4>Quiz Complete!</h4>
+    <p>You scored <strong class="quiz-score">0</strong> out of <strong>5</strong>.</p>
+  </div>
+</div>
