@@ -112,7 +112,7 @@ const postDates = publishedPosts.map(p => p.frontmatter.date).filter(Boolean);
 					{posts.map((post) => (
 						<li>
 							<a href={post.url}>{post.frontmatter.title}</a>
-							<p class="date">{post.frontmatter.date} <span class="reading-time">📖 {post.readingTime} min read</span></p>
+							<p class="date"><time class="local-date" datetime={post.frontmatter.date}>{post.frontmatter.date}</time> <span class="reading-time">📖 {post.readingTime} min read</span></p>
 							<p class="description">{post.frontmatter.description}</p>
 							<div class="tags">
 								{post.frontmatter.tags?.map((tag) => (
@@ -143,6 +143,13 @@ const postDates = publishedPosts.map(p => p.frontmatter.date).filter(Boolean);
 			let calendarYear = currentYear;
 			const posts = postDates;
 
+			function getLocalYYYYMMDD(dateObj) {
+				const y = dateObj.getFullYear();
+				const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+				const d = String(dateObj.getDate()).padStart(2, '0');
+				return `${y}-${m}-${d}`;
+			}
+
 			function updateCalendar() {
 				document.getElementById('calendar-title').textContent = 
 					new Date(calendarYear, calendarMonth).toLocaleDateString('en-US', { month: 'long' });
@@ -161,10 +168,10 @@ const postDates = publishedPosts.map(p => p.frontmatter.date).filter(Boolean);
 					const d = new Date(startDate);
 					d.setDate(d.getDate() + i);
 					
-					const dateStr = d.toISOString().split('T')[0];
+					const dateStr = getLocalYYYYMMDD(d);
 					const hasPost = posts.some(p => {
 						const postDate = new Date(p);
-						return !isNaN(postDate.getTime()) && postDate.toISOString().split('T')[0] === dateStr;
+						return !isNaN(postDate.getTime()) && getLocalYYYYMMDD(postDate) === dateStr;
 					});
 					const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
 					const isCurrentMonth = d.getMonth() === calendarMonth;
@@ -207,8 +214,23 @@ const postDates = publishedPosts.map(p => p.frontmatter.date).filter(Boolean);
 					const year = calendarYear;
 					const month = calendarMonth;
 					const day = parseInt(target.textContent);
-					const date = new Date(year, month, day).toISOString().split('T')[0];
-					window.location.href = `/date/${date}`;
+					const dateStr = getLocalYYYYMMDD(new Date(year, month, day));
+					window.location.href = `/date/${dateStr}`;
+				}
+			});
+
+			// Localize dates to user's timezone
+			document.querySelectorAll('time.local-date').forEach(el => {
+				const d = new Date(el.getAttribute('datetime'));
+				if (!isNaN(d.getTime())) {
+					el.textContent = d.toLocaleString(undefined, {
+						year: 'numeric',
+						month: 'long',
+						day: 'numeric',
+						hour: 'numeric',
+						minute: '2-digit',
+						timeZoneName: 'short'
+					});
 				}
 			});
 

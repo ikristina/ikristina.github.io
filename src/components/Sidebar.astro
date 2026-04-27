@@ -14,7 +14,9 @@ posts.forEach((post) => {
     tagCounts[tag] = (tagCounts[tag] || 0) + 1;
   });
 });
-const tags = Object.entries(tagCounts).map(([tag, count]) => ({ tag, count }));
+const tags = Object.entries(tagCounts)
+  .map(([tag, count]) => ({ tag, count }))
+  .sort((a, b) => a.tag.localeCompare(b.tag));
 
 const postDates = posts.map((p) => p.frontmatter.date).filter(Boolean);
 ---
@@ -103,7 +105,7 @@ const postDates = posts.map((p) => p.frontmatter.date).filter(Boolean);
             <a
               href={`/tags/${tag}`}
               class="tag-item"
-              style={`font-size: ${0.8 + count * 0.2}rem`}
+              style={`font-size: ${Math.min(1.5, 0.75 + count * 0.1)}rem; line-height: 1`}
             >
               {tag}
             </a>
@@ -120,6 +122,13 @@ const postDates = posts.map((p) => p.frontmatter.date).filter(Boolean);
   let calendarMonth = now.getMonth();
   let calendarYear = now.getFullYear();
   const posts = postDates;
+
+  function getLocalYYYYMMDD(dateObj) {
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
 
   function updateCalendar() {
     document.getElementById("calendar-title").textContent = new Date(
@@ -141,12 +150,12 @@ const postDates = posts.map((p) => p.frontmatter.date).filter(Boolean);
       const d = new Date(startDate);
       d.setDate(d.getDate() + i);
 
-      const dateStr = d.toISOString().split("T")[0];
+      const dateStr = getLocalYYYYMMDD(d);
       const hasPost = posts.some((p) => {
         const postDate = new Date(p);
         return (
           !isNaN(postDate.getTime()) &&
-          postDate.toISOString().split("T")[0] === dateStr
+          getLocalYYYYMMDD(postDate) === dateStr
         );
       });
       const isToday =
@@ -202,8 +211,8 @@ const postDates = posts.map((p) => p.frontmatter.date).filter(Boolean);
       const year = calendarYear;
       const month = calendarMonth;
       const day = parseInt(target.textContent);
-      const date = new Date(year, month, day).toISOString().split("T")[0];
-      window.location.href = `/date/${date}`;
+      const dateStr = getLocalYYYYMMDD(new Date(year, month, day));
+      window.location.href = `/date/${dateStr}`;
     }
   });
 
