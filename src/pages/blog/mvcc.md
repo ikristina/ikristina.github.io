@@ -1,10 +1,9 @@
 ---
 layout: ../../layouts/BlogPost.astro
 title: 'How MVCC Works and Why Databases Use It'
-date: '2026-04-21 20:00 MDT'
-draft: true
-description: 'Multi-version concurrency control lets readers and writers proceed without blocking each other. This post explains how it works from first principles, and how PostgreSQL, CockroachDB, and MySQL InnoDB each implement it.'
-tags: ['databases', 'mvcc', 'postgres', 'concurrency']
+date: '2026-04-26 20:25 MDT'
+description: 'Multi-version concurrency control lets readers and writers proceed without blocking each other. A breakdown of the core mechanics, and how PostgreSQL, CockroachDB, and MySQL InnoDB implement them.'
+tags: ['databases', 'mvcc', 'postgres', 'concurrency', 'cockroachdb', 'mysql', ' InnoDB', 'transaction']
 showToc: true
 ---
 
@@ -15,6 +14,8 @@ This works correctly but kills read throughput under contention. A long-running 
 But readers don't actually need to see writes in progress. A read that started before a transaction began has no business seeing its uncommitted data. If we can give readers a stable view of the database as it existed when they started, readers and writers can proceed simultaneously without interfering with each other.
 
 That is the core insight behind **Multi-Version Concurrency Control (MVCC)**.
+
+![Locks vs MVCC](/images/locks_vs_mvcc.png)
 
 ## The Core Idea
 
@@ -47,7 +48,7 @@ T2 sees the same data throughout its transaction regardless of what T1 does. Nei
 
 ## PostgreSQL
 
-PostgreSQL stores every version of a row as a separate **tuple** in the heap file. Each tuple carries two fields:
+PostgreSQL stores every version of a row as a separate **tuple** in the heap file (if you're curious about how a row gets to the heap in the first place, check out my deep dive on [how PostgreSQL writes a row](/blog/postgres-write-row)). Each tuple carries two fields:
 
 - **`xmin`** - the transaction ID that created this tuple.
 - **`xmax`** - the transaction ID that deleted or replaced it. Zero if the tuple is still live.
@@ -65,7 +66,9 @@ FROM heap_page_items(get_raw_page('accounts', 0));
 
 The cost of this approach is that dead tuples accumulate in the heap. Old versions cannot be removed until no active transaction's snapshot predates them. PostgreSQL's **autovacuum** process runs in the background and reclaims those dead tuples once they are no longer visible to any running transaction. Without regular vacuuming, tables bloat and sequential scan performance degrades.
 
-On Amazon RDS and Aurora PostgreSQL, autovacuum runs automatically, but the default settings are not tuned for all workloads. High-write tables often benefit from tighter `autovacuum_vacuum_scale_factor` and `autovacuum_vacuum_threshold` settings, configured per-table via RDS Parameter Groups. PostgreSQL transaction IDs are 32-bit integers, giving roughly 2 billion possible values before the counter wraps around. MVCC visibility is computed by comparing transaction IDs using modular arithmetic that treats the ID space as a circle - any ID within 2 billion behind the current one is considered "in the past," and any ID within 2 billion ahead is considered "in the future." If a live tuple's `xmin` is more than 2 billion transactions old, that arithmetic flips it to "in the future," making the row invisible to every transaction. Rows silently disappear. That is **transaction ID wraparound**.
+On Amazon RDS and Aurora PostgreSQL, autovacuum runs automatically, but the default settings are not tuned for all workloads. High-write tables often benefit from tighter `autovacuum_vacuum_scale_factor` and `autovacuum_vacuum_threshold` settings, configured per-table via RDS Parameter Groups. 
+
+PostgreSQL transaction IDs are 32-bit integers, giving roughly 2 billion possible values before the counter wraps around. MVCC visibility is computed by comparing transaction IDs using modular arithmetic that treats the ID space as a circle - any ID within 2 billion behind the current one is considered "in the past," and any ID within 2 billion ahead is considered "in the future." If a live tuple's `xmin` is more than 2 billion transactions old, that arithmetic flips it to "in the future," making the row invisible to every transaction. Rows silently disappear. That is **transaction ID wraparound**.
 
 Autovacuum prevents this by **freezing** old tuples before they approach the wraparound horizon. Freezing replaces `xmin` with a special marker (`FrozenTransactionId`) that is always treated as in the past, removing the tuple from the ID comparison entirely. PostgreSQL starts warning in the server logs when you are within 40 million transactions of the limit, and shuts down entirely - refusing all writes - at 3 million, to force a manual vacuum before data loss occurs.
 
@@ -73,7 +76,7 @@ The `MaximumUsedTransactionIDs` CloudWatch metric tracks how close the oldest un
 
 ## CockroachDB
 
-CockroachDB is a distributed SQL database built on a replicated key-value store. It implements MVCC at the storage layer, but with an important difference: row versions are keyed by **(key, timestamp)** rather than (key, transaction ID).
+CockroachDB is a distributed SQL database built on a replicated key-value store (using a [Multi-Raft architecture](/blog/multi-raft-architecture)). It implements MVCC at the storage layer, but with an important difference: row versions are keyed by **(key, timestamp)** rather than (key, transaction ID).
 
 Instead of integer transaction IDs, CockroachDB uses **Hybrid Logical Clocks (HLC)**. An HLC combines a physical wall clock with a logical counter. When a node receives a message timestamped ahead of its own clock, it advances its logical counter to match. This gives every event a globally comparable timestamp while tolerating the fact that clocks across machines are never perfectly synchronized.
 
@@ -119,3 +122,79 @@ The tradeoff is storage and cleanup complexity. Dead versions accumulate and mus
 - [The Internals of PostgreSQL - Chapter 5](https://www.interdb.jp/pg/pgsql05.html) - deep dive on PostgreSQL's MVCC implementation
 - [CockroachDB MVCC](https://www.cockroachlabs.com/blog/mvcc-garbage-collection/)
 - [Designing Data-Intensive Applications](https://dataintensive.net/) by Martin Kleppmann - Chapter 7 covers transactions and snapshot isolation
+
+<div class="quiz-widget">
+  <div class="quiz-header">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    Knowledge Check <span class="quiz-progress"></span>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">What is the primary problem MVCC solves that traditional locking does not?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Data corruption during crashes.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Readers being blocked by writers (and vice versa).</div></div>
+      <div class="quiz-option" data-letter="C"><div>Hard drive failure.</div></div>
+      <div class="quiz-option" data-letter="D"><div>Network latency in distributed clusters.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> By keeping old versions around, MVCC allows readers and writers to proceed simultaneously without interfering with each other.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. While DBs have mechanisms for crashes (like <a href="/blog/write-ahead-logging">WAL</a>), MVCC specifically addresses concurrent access without locks.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">In PostgreSQL, what happens to an old row version when a writer updates it?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>It is immediately deleted to save space.</div></div>
+      <div class="quiz-option" data-letter="B"><div>It is moved to an "undo log" outside the main table.</div></div>
+      <div class="quiz-option" data-letter="C"><div>It stays in the heap file, but its xmax is set to the writer's transaction ID.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It is overwritten by the new data.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> PostgreSQL writes a brand-new tuple for the update and simply updates the old tuple's xmax. The old tuple stays exactly where it was.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. B describes InnoDB's approach, and A/D would destroy data needed by active readers.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="C">
+    <div class="quiz-question">Which database uses "Undo Logs" to reconstruct older versions of rows rather than storing multiple versions directly in the main table?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>PostgreSQL</div></div>
+      <div class="quiz-option" data-letter="B"><div>CockroachDB</div></div>
+      <div class="quiz-option" data-letter="C"><div>MySQL (InnoDB)</div></div>
+      <div class="quiz-option" data-letter="D"><div>SQLite</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> InnoDB keeps the main table compact by storing the current version there, and uses undo logs to rebuild older versions for active snapshots.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>C</strong>. PostgreSQL stores old versions directly in the main heap file.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">What is the main risk of "Transaction ID Wraparound" in PostgreSQL?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>The database becomes too fast for the CPU.</div></div>
+      <div class="quiz-option" data-letter="B"><div>Older rows can silently "disappear" or become invisible.</div></div>
+      <div class="quiz-option" data-letter="C"><div>The database automatically deletes the newest transactions.</div></div>
+      <div class="quiz-option" data-letter="D"><div>The hard drive is physically damaged.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> If old tuples aren't frozen by autovacuum before the 2 billion transaction threshold is reached, modular arithmetic flips their status to "in the future," rendering them permanently invisible.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. It causes catastrophic silent data loss because old data suddenly appears to be from the future.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">Which mechanism is used by CockroachDB to order transactions across different machines?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>Sequential Integers</div></div>
+      <div class="quiz-option" data-letter="B"><div>Hybrid Logical Clocks (HLC)</div></div>
+      <div class="quiz-option" data-letter="C"><div>Random Number Generators</div></div>
+      <div class="quiz-option" data-letter="D"><div>Atomic Wall Clocks only</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> CockroachDB uses Hybrid Logical Clocks, combining physical wall clocks with logical counters to establish a consistent ordering while tolerating slight clock drift.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. Relying purely on wall clocks (D) is dangerous due to drift, and sequential integers (A) are impractical in a decentralized distributed system.</div>
+  </div>
+
+  <div class="quiz-footer">
+    <button class="quiz-next-btn">Next Question →</button>
+  </div>
+  
+  <div class="quiz-results">
+    <h4>Quiz Complete!</h4>
+    <p>You scored <strong class="quiz-score">0</strong> out of <strong>5</strong>.</p>
+  </div>
+</div>
