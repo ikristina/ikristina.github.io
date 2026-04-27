@@ -17,7 +17,7 @@
   "dependencies": {
     "@astrojs/rss": "^4.0.12",
     "@atproto/api": "^0.18.21",
-    "astro": "^5.18.1",
+    "astro": "^6.1.6",
     "dotenv": "^17.3.1",
     "rehype-katex": "^7.0.1",
     "remark-github-blockquote-alert": "^2.1.0",
