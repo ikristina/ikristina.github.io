@@ -6,7 +6,7 @@ import Sidebar from '../components/Sidebar.astro';
 const url = new URL(Astro.request.url);
 const query = url.searchParams.get('q') || '';
 
-const allPosts = await Astro.glob('./blog/*.md');
+const allPosts = Object.values(await import.meta.glob('./blog/*.md', { eager: true }));
 const now = new Date();
 const posts = allPosts.filter(post => new Date(post.frontmatter.date) <= now && !post.frontmatter.draft);
 ---
