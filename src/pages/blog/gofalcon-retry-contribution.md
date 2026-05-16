@@ -155,3 +155,67 @@ Beyond just "adding a loop," this experience taught me several patterns:
 - **Context as a Control Plane**: In Go, the `context` should always be the ultimate authority for when a process stops.
 
 The existing `TransportDecorator` pattern in `gofalcon` made it straightforward to inject this logic without touching any generated code. It’s a testament to the value of "pluggable" architecture in SDK design.
+
+<div class="quiz-widget">
+  <div class="quiz-header">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    Knowledge Check <span class="quiz-progress"></span>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">What is the primary architectural advantage of implementing retry logic at the <code>http.RoundTripper</code> layer?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>It is the only layer where you can access the request body.</div></div>
+      <div class="quiz-option" data-letter="B"><div>It allows the retry logic to be shared across all SDK services (Detections, RTR, etc.) transparently.</div></div>
+      <div class="quiz-option" data-letter="C"><div>It automatically handles OAuth2 token refreshing without any extra code.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It is a requirement of the <code>cenkalti/backoff</code> library.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> By wrapping the transport, the retry logic becomes a cross-cutting concern that benefits every high-level service call in the SDK simultaneously.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. <code>RoundTripper</code> acts as middleware, making the retry logic transparent to all services that use the underlying HTTP client.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">Why is it critical to "drain" the response body before retrying an HTTP request in Go?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>To clear the CPU cache for the next network attempt.</div></div>
+      <div class="quiz-option" data-letter="B"><div>To ensure the underlying TCP connection can be returned to the pool and reused (Keep-Alive).</div></div>
+      <div class="quiz-option" data-letter="C"><div>To prevent a memory leak in the <code>backoff</code> library's state machine.</div></div>
+      <div class="quiz-option" data-letter="D"><div>To force the Falcon API to reset the rate limit counter.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> If the body isn't read to completion, Go's <code>http.Client</code> cannot reuse the TCP connection, leading to expensive new socket creations and potential exhaustion.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. Socket hygiene ensures that the connection pool remains efficient by allowing Keep-Alive to function correctly.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">What happens if you try to resend a <code>POST</code> request body twice without using <code>req.GetBody</code> or manual cloning?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>The second attempt will succeed normally because Go handles this automatically.</div></div>
+      <div class="quiz-option" data-letter="B"><div>The second attempt will fail because the body (an <code>io.Reader</code>) is already exhausted.</div></div>
+      <div class="quiz-option" data-letter="C"><div>The <code>http.Client</code> will automatically rewind the body for you.</div></div>
+      <div class="quiz-option" data-letter="D"><div>The Go compiler will catch this as a type mismatch error.</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> <code>io.Reader</code> is a one-way stream. Once read, it stays at the end of the stream. <code>GetBody</code> provides a way to get a fresh, unread stream for every retry.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. You must provide a fresh reader for every attempt because the first attempt "consumed" the original stream.</div>
+  </div>
+
+  <div class="quiz-question-block" data-correct="B">
+    <div class="quiz-question">Besides a <code>MaxTries</code> limit, how should a production-grade retry loop determine when to stop?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" data-letter="A"><div>By checking the available system memory on every iteration.</div></div>
+      <div class="quiz-option" data-letter="B"><div>By respecting <code>context.Context</code> cancellation or timeouts.</div></div>
+      <div class="quiz-option" data-letter="C"><div>By waiting for a specific "retry-after" header from the API.</div></div>
+      <div class="quiz-option" data-letter="D"><div>It should never stop until the request succeeds (infinite retry).</div></div>
+    </div>
+    <div class="quiz-success-msg"><strong>Correct! 🎉</strong> The <code>context</code> is the source of truth for request lifecycles. If the caller times out or cancels, the retry loop must stop immediately.</div>
+    <div class="quiz-error-msg"><strong>Not quite.</strong> The correct answer is <strong>B</strong>. Tying your retry loop to the request context ensures that you don't create "zombie" requests after a caller has moved on.</div>
+  </div>
+
+  <div class="quiz-footer">
+    <button class="quiz-next-btn">Next Question →</button>
+  </div>
+  
+  <div class="quiz-results">
+    <h4>Quiz Complete!</h4>
+    <p>You scored <strong class="quiz-score">0</strong> out of <strong>4</strong>.</p>
+  </div>
+</div>
