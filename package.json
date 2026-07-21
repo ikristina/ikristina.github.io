@@ -15,7 +15,7 @@
     "fast-xml-parser": "^5.7.1"
   },
   "dependencies": {
-    "@astrojs/rss": "^4.0.12",
+    "@astrojs/rss": "^4.0.19",
     "@atproto/api": "^0.18.21",
     "astro": "^6.1.6",
     "dotenv": "^17.3.1",
