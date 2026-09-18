@@ -8,13 +8,16 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write   # needed for the action to commit the README update
+
 jobs:
   update-readme-with-blog:
     name: Update README with latest blog posts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: gautamkrishnar/blog-post-workflow@v2
+      - uses: gautamkrishnar/blog-post-workflow@v1
         with:
           feed_list: "https://ikristina.github.io/rss.xml"
           max_post_count: 5
