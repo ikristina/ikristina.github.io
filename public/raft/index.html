@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Raft, step by step</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --ink:#17202b; --muted:#5e6875; --line:#d3d9e0;
+  --accent:#2457c5; --fol:#7b8796; --can:#c98a12; --lead:#1f8a5a; --dead:#b4bac2;
+  --req:#2457c5; --ok:#1f8a5a; --no:#c23b32; --lost:#98a0aa; --onbg:#fff6d6;
+  --t1:#e4e8ee; --t2:#d6e4fb; --t3:#fbe7c6; --t4:#d7f0e3; --t5:#f4d9ef;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#11161d; --panel:#19212b; --ink:#e6ebf1; --muted:#97a2b0; --line:#2c3644;
+    --accent:#6f9cf5; --fol:#8a96a6; --can:#e3a73a; --lead:#3fbf83; --dead:#4a525d;
+    --req:#6f9cf5; --ok:#3fbf83; --no:#ec6a60; --lost:#6c7480; --onbg:#3a3418;
+    --t1:#2a323d; --t2:#21345a; --t3:#4a3a1a; --t4:#1d4434; --t5:#47284a;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11161d; --panel:#19212b; --ink:#e6ebf1; --muted:#97a2b0; --line:#2c3644;
+  --accent:#6f9cf5; --fol:#8a96a6; --can:#e3a73a; --lead:#3fbf83; --dead:#4a525d;
+  --req:#6f9cf5; --ok:#3fbf83; --no:#ec6a60; --lost:#6c7480; --onbg:#3a3418;
+  --t1:#2a323d; --t2:#21345a; --t3:#4a3a1a; --t4:#1d4434; --t5:#47284a;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1240px;margin:0 auto;padding:20px 18px 40px}
+h1{font-size:26px;font-weight:600;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 16px;max-width:70ch}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace}
+
+/* chapter map */
+.map{display:flex;gap:10px;overflow-x:auto;padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;margin-bottom:14px}
+.mcol{min-width:150px;flex:1}
+.mtitle{font-size:13px;font-weight:600;margin-bottom:6px;white-space:nowrap}
+.dots{display:flex;flex-wrap:wrap;gap:5px}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);background:transparent;padding:0;cursor:pointer}
+.dot.seen{background:var(--line)}
+.dot.cur{background:var(--accent);border-color:var(--accent);transform:scale(1.25)}
+.dot:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.branch{margin-top:10px;padding:8px 8px 8px 10px;border-left:2px dashed var(--can);border-radius:0 6px 6px 0}
+.branch .mtitle{color:var(--can)}
+.fork{font-size:12px;color:var(--muted);margin-bottom:2px}
+
+/* main grid */
+.grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+svg{display:block;max-width:100%;height:auto}
+#cluster{width:100%}
+
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.btn{font:inherit;font-size:14px;padding:7px 14px;border-radius:7px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.count{margin-left:auto;color:var(--muted);font-size:13px}
+
+/* log table */
+.logs{margin-top:12px;overflow-x:auto}
+.lrow{display:flex;align-items:center;gap:4px;margin-bottom:4px}
+.lname{width:44px;font-weight:600;font-size:13px;flex:none}
+.lrow.dead{opacity:.4}
+.cell{width:62px;height:34px;flex:none;border-radius:5px;border:1.5px solid transparent;font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}
+.cell small{font-size:10px;color:var(--muted)}
+.cell.empty{border:1px dashed var(--line)}
+.cell.unc{border-style:dashed;border-color:var(--muted)}
+.cell.com{border-color:var(--ink)}
+.cell.new{animation:pop .6s ease}
+@keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:none;opacity:1}}
+.lhead{display:flex;gap:4px;margin-left:48px;margin-bottom:4px}
+.lhead span{width:62px;text-align:center;font-size:11px;color:var(--muted)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:14px;height:10px;border-radius:3px;vertical-align:middle;margin-right:4px}
+
+/* text side */
+.chap{font-size:13px;color:var(--muted)}
+.chap.br{color:var(--can)}
+h2{font-size:20px;margin:2px 0 8px;font-weight:600;line-height:1.3}
+.txt p{margin:0 0 8px;max-width:62ch}
+.txt b{font-weight:600}
+.forkbox{margin:12px 0 4px;padding:10px 12px;border:1px solid var(--line);border-radius:8px}
+.forkbox .q{font-weight:600;margin-bottom:6px}
+.opts{display:flex;flex-direction:column;gap:6px}
+.opt{text-align:left;font:inherit;font-size:14px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.opt.here{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.opt .tag{font-weight:600;margin-right:6px}
+.opt .tag.y{color:var(--ok)} .opt .tag.n{color:var(--no)}
+h3{font-size:14px;margin:16px 0 8px;font-weight:600}
+
+/* flowchart */
+.ftitle{font-size:13px;color:var(--muted);margin-bottom:6px}
+.frow{display:flex;gap:8px;align-items:stretch}
+.fbox{flex:1;padding:7px 10px;border-radius:6px;border:1px solid var(--line);font-size:13px;opacity:.55}
+.fbox.q{border-left:4px solid var(--accent)}
+.fbox.a{border-left:4px solid var(--ok)}
+.fbox.on{opacity:1;background:var(--onbg);border-color:var(--ink)}
+.fno{width:42%;padding:7px 10px;border-radius:6px;border:1px dashed var(--line);font-size:13px;color:var(--muted);opacity:.6}
+.fno span{color:var(--no);font-weight:600}
+.fno.on{opacity:1;border:1.5px solid var(--no);color:var(--ink);background:var(--onbg)}
+.fdown{font-size:12px;color:var(--muted);padding:2px 0 2px 14px;opacity:.5}
+.fdown.on{opacity:1;color:var(--ok);font-weight:600}
+
+/* svg bits */
+.link{stroke:var(--line);stroke-width:1.5}
+.link.cut{stroke:var(--no);stroke-dasharray:5 5;stroke-width:2}
+.nlabel{font:600 15px "IBM Plex Sans",system-ui,sans-serif;fill:#fff}
+.nsub{font:500 12px "IBM Plex Sans",system-ui,sans-serif;fill:var(--ink)}
+.nsub2{font:400 11px "IBM Plex Sans",system-ui,sans-serif;fill:var(--muted)}
+.mlabel{font:500 11px "IBM Plex Mono",ui-monospace,monospace;paint-order:stroke;stroke:var(--panel);stroke-width:4px}
+.sm-box{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+.sm-box.on{fill:var(--onbg);stroke:var(--ink);stroke-width:2}
+.sm-t{font:600 14px "IBM Plex Sans",system-ui,sans-serif;fill:var(--ink)}
+.sm-e{fill:none;stroke:var(--line);stroke-width:1.8}
+.sm-e.on{stroke:var(--accent);stroke-width:3;stroke-dasharray:8 5;animation:flow 1s linear infinite}
+.sm-l{font:400 11.5px "IBM Plex Sans",system-ui,sans-serif;fill:var(--muted)}
+.sm-l.on{fill:var(--accent);font-weight:600}
+@keyframes flow{to{stroke-dashoffset:-13}}
+@media (prefers-reduced-motion:reduce){.sm-e.on{animation:none}.cell.new{animation:none}}
+.muted{color:var(--muted)} .small{font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Raft, step by step</h1>
+  <p class="sub">Five servers agree on one log. Press Next or use the arrow keys. Dashed paths in the map below are branches: what happens when things go differently.</p>
+
+  <nav class="map" id="map" aria-label="Chapters and steps"></nav>
+
+  <div class="grid">
+    <section class="panel">
+      <svg id="cluster" viewBox="0 0 600 450" role="img" aria-label="Cluster diagram">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="currentColor"/></marker>
+        </defs>
+        <g id="g-links"></g><g id="g-nodes"></g><g id="g-msgs"></g>
+      </svg>
+      <div class="controls">
+        <button class="btn" id="prev">Back</button>
+        <button class="btn primary" id="next">Next</button>
+        <button class="btn" id="replay">Replay</button>
+        <button class="btn" id="auto" aria-pressed="false">Autoplay</button>
+        <span class="count" id="count"></span>
+      </div>
+      <div class="logs" id="logs"></div>
+      <div class="legend">
+        <span><i style="border:1.5px solid var(--ink)"></i>committed</span>
+        <span><i style="border:1.5px dashed var(--muted)"></i>not committed yet</span>
+        <span><i style="background:var(--t2)"></i>term 2</span>
+        <span><i style="background:var(--t3)"></i>term 3</span>
+        <span><i style="background:var(--t4)"></i>term 4</span>
+        <span><i style="background:var(--t5)"></i>term 5</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="chap" id="chap"></div>
+      <h2 id="title"></h2>
+      <div class="txt" id="text"></div>
+      <div id="fork"></div>
+      <h3>Rule being applied</h3>
+      <div id="flow"></div>
+      <h3>Role transitions</h3>
+      <svg id="sm" viewBox="0 0 520 190" role="img" aria-label="Follower, candidate, leader state machine"></svg>
+    </section>
+  </div>
+</div>
+
+<script>
+const IDS = ['S1','S2','S3','S4','S5'];
+const POS = {S1:[300,62],S2:[443,166],S3:[388,330],S4:[212,330],S5:[157,166],C:[540,412]};
+const ROLE = {F:['Follower','--fol'],C:['Candidate','--can'],L:['Leader','--lead'],X:['Crashed','--dead']};
+const $ = s => document.querySelector(s);
+
+// ---------- state helpers ----------
+const L = s => s ? s.split('|').map(e => { const [t,c] = e.split(':'); return {t:+t, c}; }) : [];
+// spec: [role, term, log, commitIndex, votedFor, voteCount]
+function S(def, over = {}, part = null){
+  const nodes = {};
+  for (const id of IDS){
+    const a = over[id] || def;
+    nodes[id] = {r:a[0], t:a[1], log:L(a[2]||''), ci:a[3]||0, v:a[4]||null, vc:a[5]||0};
+  }
+  return {nodes, part};
+}
+const M = (f,to,k,l) => ({f,to,k,l});
+const fan = (f,tos,k,l) => tos.map(to => M(f,to,k,l));
+const back = (fs,to,k,l) => fs.map(f => M(f,to,k,l));
+const others = x => IDS.filter(i => i !== x);
+
+// ---------- rule flowcharts ----------
+const FLOWS = {
+  vote:{title:'RequestVote: how a server decides', items:[
+    {id:'v1', q:'Is the candidate’s term ≥ my term?', no:'Deny. Stale candidate.'},
+    {id:'v2', q:'Have I not voted yet this term (or voted for this candidate)?', no:'Deny. One vote per term.'},
+    {id:'v3', q:'Is the candidate’s log at least as up to date as mine? (higher last term wins, then longer log)', no:'Deny. It might be missing committed entries.'},
+    {id:'v4', a:'Grant the vote and reset my election timer.'}]},
+  append:{title:'AppendEntries: how a follower decides', items:[
+    {id:'a1', q:'Is the leader’s term ≥ my term?', no:'Reject. The sender is a stale leader.'},
+    {id:'a2', a:'Accept this leader. Adopt its term, become follower, reset timer.'},
+    {id:'a3', q:'Do I have an entry at prevLogIndex with prevLogTerm?', no:'Reject. Leader decrements nextIndex and retries.'},
+    {id:'a4', a:'Delete any conflicting entries. Append the new ones.'},
+    {id:'a5', a:'Set commitIndex = min(leaderCommit, my last index). Reply OK.'}]},
+  commit:{title:'Leader: when is an entry committed?', items:[
+    {id:'m1', q:'Is the entry stored on a majority (3 of 5, counting me)?', no:'Wait. Keep retrying the followers.'},
+    {id:'m2', q:'Is the entry from my current term?', no:'Wait. It commits when a newer entry from my term commits.'},
+    {id:'m3', a:'Commit. Apply to the state machine. Reply to the client.'}]}
+};
+
+// ---------- chapters ----------
+const CH = [
+  {id:'basics', title:'1. The cluster'},
+  {id:'elect',  title:'2. Leader election'},
+  {id:'split',  title:'Branch A: split vote', branchOf:'elect', fork:'if no one gets a majority'},
+  {id:'repl',   title:'3. Log replication'},
+  {id:'lag',    title:'Branch B: lagging follower', branchOf:'repl', fork:'if a follower’s log doesn’t match'},
+  {id:'crash',  title:'4. Leader crash'},
+  {id:'part',   title:'5. Network partition'}
+];
+
+// ---------- states ----------
+const s0 = S(['F',1]);
+const sB2 = S(['F',1], {S3:['C',2,'',0,'S3',1]});
+const sE1 = S(['F',2,'',0,'S3'], {S3:['C',2,'',0,'S3',5]});
+const sE2 = S(['F',2,'',0,'S3'], {S3:['L',2,'',0,'S3']});
+
+const sA1 = S(['F',1], {S1:['C',2,'',0,'S1',1], S3:['C',2,'',0,'S3',1], S5:['C',2,'',0,'S5',1]});
+const sA2 = S(['F',2], {S1:['C',2,'',0,'S1',2], S2:['F',2,'',0,'S1'], S3:['C',2,'',0,'S3',1], S4:['F',2,'',0,'S5'], S5:['C',2,'',0,'S5',2]});
+const sA3 = S(['F',2], {S1:['C',2,'',0,'S1',2], S2:['F',2,'',0,'S1'], S3:['C',2,'',0,'S3',1], S4:['F',2,'',0,'S5'], S5:['C',3,'',0,'S5',1]});
+const sA4 = S(['F',3,'',0,'S5'], {S5:['L',3,'',0,'S5']});
+
+const R0 = S(['F',2], {S3:['L',2]});
+const X1 = '2:x=5', X2 = '2:x=5|2:y=7', X3 = '2:x=5|2:y=7|2:z=9', X4 = '2:x=5|2:y=7|2:z=9|2:w=1';
+const sR1 = S(['F',2], {S3:['L',2,X1,0]});
+const sR2 = S(['F',2,X1,0], {S3:['L',2,X1,0]});
+const sR3 = S(['F',2,X1,0], {S3:['L',2,X1,1]});
+const sR4 = S(['F',2,X1,1], {S3:['L',2,X1,1]});
+const sR5 = S(['F',2,X1,1], {S3:['L',2,X1,1], S5:['X',2,X1,1]});
+const sR6 = S(['F',2,X2,1], {S3:['L',2,X2,2], S5:['X',2,X1,1]});
+
+const LG0 = S(['F',2,X2,2], {S3:['L',2,X2,2], S5:['F',2,X1,1]});
+const sL1 = S(['F',2,X3,2], {S3:['L',2,X3,3], S5:['F',2,X1,1]});
+const sL2 = S(['F',2,X3,3], {S3:['L',2,X3,3]});
+
+const K0 = S(['F',2,X3,3], {S3:['L',2,X3,3]});
+const sK1 = S(['F',2,X3,3], {S1:['F',2,X4,3], S2:['F',2,X4,3], S3:['L',2,X4,4]});
+const sK2 = S(['F',2,X3,3], {S1:['F',2,X4,3], S2:['F',2,X4,3], S3:['X',2,X4,4]});
+const sK3 = S(['F',2,X3,3], {S1:['F',2,X4,3], S2:['F',2,X4,3], S3:['X',2,X4,4], S4:['C',3,X3,3,'S4',1]});
+const sK4 = S(['F',3,X3,3], {S1:['F',3,X4,3], S2:['F',3,X4,3], S3:['X',2,X4,4], S4:['C',3,X3,3,'S4',2], S5:['F',3,X3,3,'S4']});
+const sK5 = S(['F',3,X3,3], {S1:['C',4,X4,3,'S1',1], S2:['F',3,X4,3], S3:['X',2,X4,4], S4:['C',3,X3,3,'S4',2], S5:['F',3,X3,3,'S4']});
+const sK6 = S(['F',4,X3,3,'S1'], {S1:['L',4,X4,4,'S1'], S2:['F',4,X4,3,'S1'], S3:['X',2,X4,4]});
+const sK7 = S(['F',4,X4,4], {S1:['L',4,X4,4], S3:['X',2,X4,4]});
+
+const P0 = S(['F',4,X4,4], {S1:['L',4,X4,4]});
+const sP1 = S(['F',4,X4,4], {S1:['L',4,X4,4]}, ['S1','S2']);
+const V5 = X4+'|4:v=3', U5 = X4+'|5:u=8';
+const sP2 = S(['F',4,X4,4], {S1:['L',4,V5,4], S2:['F',4,V5,4]}, ['S1','S2']);
+const sP3 = S(['F',4,X4,4], {S1:['L',4,V5,4], S2:['F',4,V5,4], S4:['C',5,X4,4,'S4',1]}, ['S1','S2']);
+const sP4 = S(['F',5,X4,4,'S4'], {S1:['L',4,V5,4], S2:['F',4,V5,4], S4:['L',5,X4,4,'S4']}, ['S1','S2']);
+const sP5 = S(['F',5,U5,4], {S1:['L',4,V5,4], S2:['F',4,V5,4], S4:['L',5,U5,5]}, ['S1','S2']);
+const sP6 = S(['F',5,U5,4], {S1:['F',5,V5,4], S2:['F',5,V5,4], S4:['L',5,U5,5]});
+const sP7 = S(['F',5,U5,5], {S4:['L',5,U5,5]});
+
+// ---------- steps ----------
+const steps = [
+ {id:'b1', ch:'basics', state:s0, sm:{n:['F'],e:['start']},
+  title:'Five servers. Everyone starts as a follower.',
+  text:`<p>Raft keeps a <b>replicated log</b> identical on every server. Each log entry is a command, like <span class="mono">x=5</span>.</p>
+  <p>Time is split into <b>terms</b> (T1, T2…). Each term has at most one leader.</p>
+  <p>The ring around each server is its <b>election timeout</b>. It’s random (say 150–300 ms). If it runs out before hearing from a leader, the server starts an election.</p>
+  <p>Majority here is <b>3 of 5</b>. That number drives everything.</p>`},
+ {id:'b2', ch:'basics', state:sB2, tick:['S3'], sm:{n:['C'],e:['FC']},
+  title:'S3’s timer runs out first.',
+  text:`<p>No leader exists, so nobody sends heartbeats. S3’s random timeout happens to be shortest.</p>
+  <p>S3 becomes a <b>candidate</b>: it bumps its term to <b>T2</b> and votes for itself (1 vote).</p>`},
+
+ {id:'e1', ch:'elect', state:sE1, diag:{type:'vote',hl:['v1','v2','v3','v4']}, sm:{n:['C'],e:[]},
+  msgs:[fan('S3',others('S3'),'req','Vote? T2'), back(others('S3'),'S3','ok','yes')],
+  title:'S3 asks everyone for a vote.',
+  text:`<p>S3 sends <span class="mono">RequestVote(term=2, lastLog)</span> to all.</p>
+  <p>Each follower sees term 2 &gt; its term 1, so it adopts term 2. It hasn’t voted in T2, and S3’s log (empty) is as up to date as its own. So it votes yes.</p>`},
+ {id:'e2', ch:'elect', state:sE2, sm:{n:['L'],e:['CL']},
+  fork:{q:'Did the candidate get a majority of votes?', opts:[
+    {tag:'y', label:'Yes: S3 becomes leader', go:'e2', here:true},
+    {tag:'n', label:'No: split vote, nobody wins', go:'a1'}]},
+  title:'Majority reached. S3 is leader for T2.',
+  text:`<p>S3 has 5 votes. It only needed 3.</p>
+  <p>Each server votes once per term, so two leaders in the same term is impossible.</p>`},
+ {id:'e3', ch:'elect', state:sE2, diag:{type:'append',hl:['a1','a2','a3','a4','a5']}, sm:{n:['F','L'],e:[]},
+  msgs:[fan('S3',others('S3'),'hb','heartbeat'), back(others('S3'),'S3','ok','ok')],
+  title:'The leader sends heartbeats.',
+  text:`<p>Heartbeats are empty <span class="mono">AppendEntries</span> calls, sent regularly.</p>
+  <p>Each one resets the followers’ timers. As long as they keep arriving, no follower starts an election.</p>`},
+
+ {id:'a1', ch:'split', from:s0, state:sA1, tick:['S1','S3','S5'], sm:{n:['C'],e:['FC']},
+  title:'Three timers fire at almost the same time.',
+  text:`<p>Same start as before, but this time S1, S3 and S5 all time out together.</p>
+  <p>All three become candidates in <b>T2</b>, each voting for itself.</p>`},
+ {id:'a2', ch:'split', state:sA2, diag:{type:'vote',hl:['v1','v2','v2n']}, sm:{n:['C'],e:[]},
+  msgs:[[M('S1','S2','req','Vote? T2'), M('S5','S4','req','Vote? T2')],
+        [M('S2','S1','ok','yes'), M('S4','S5','ok','yes'), M('S3','S2','req','Vote? T2'), M('S3','S4','req','Vote? T2')],
+        [M('S2','S3','no','already voted'), M('S4','S3','no','already voted')]],
+  fork:{q:'Did any candidate get a majority?', opts:[
+    {tag:'y', label:'Yes: that one becomes leader', go:'e2'},
+    {tag:'n', label:'No: S1 has 2, S5 has 2, S3 has 1', go:'a2', here:true}]},
+  title:'The votes split.',
+  text:`<p>S2 hears from S1 first and votes for it. S4 hears from S5 first. When S3’s requests arrive, both have already voted.</p>
+  <p>Candidates also refuse each other, since each voted for itself. Nobody reaches 3.</p>`},
+ {id:'a3', ch:'split', state:sA3, tick:['S5'], sm:{n:['C'],e:['CC']},
+  title:'Nobody wins. Timers restart, randomly.',
+  text:`<p>Each candidate waits for a fresh random timeout. S5’s fires first this time.</p>
+  <p>S5 starts a new election in <b>T3</b>. That’s the loop on Candidate in the diagram below.</p>`},
+ {id:'a4', ch:'split', state:sA4, diag:{type:'vote',hl:['v1','v2','v3','v4']}, sm:{n:['L','F'],e:['CL','CF']},
+  msgs:[fan('S5',others('S5'),'req','Vote? T3'), back(others('S5'),'S5','ok','yes')],
+  title:'S5 wins T3. Back to the main path.',
+  text:`<p>T3 is higher than everyone’s T2. S1 and S3 step down to follower and vote for S5.</p>
+  <p>Randomized timeouts make repeated splits rare. Next: log replication.</p>`},
+
+ {id:'r1', ch:'repl', from:R0, state:sR1, sm:{n:['L'],e:[]},
+  msgs:[[M('C','S3','req','x=5')]],
+  title:'A client sends a command to the leader.',
+  text:`<p>Only the leader accepts writes. (Followers redirect clients to it.)</p>
+  <p>S3 appends <span class="mono">x=5</span> to its log at index 1, term 2. The dashed border means <b>not committed</b> yet.</p>`},
+ {id:'r2', ch:'repl', state:sR2, diag:{type:'append',hl:['a1','a2','a3','a4']}, sm:{n:['L'],e:[]},
+  msgs:[fan('S3',others('S3'),'app','AE #1')],
+  title:'The leader replicates the entry.',
+  text:`<p>S3 sends <span class="mono">AppendEntries(prevLogIndex=0, entries=[x=5])</span>.</p>
+  <p>The <b>prevLogIndex / prevLogTerm</b> pair is a consistency check: “you must have this exact entry before mine.” Index 0 always matches.</p>
+  <p>Followers append it, still uncommitted.</p>`},
+ {id:'r3', ch:'repl', state:sR3, diag:{type:'commit',hl:['m1','m2','m3']}, sm:{n:['L'],e:[]},
+  msgs:[back(others('S3'),'S3','ok','ack #1')],
+  fork:{q:'Is the entry stored on a majority?', opts:[
+    {tag:'y', label:'Yes: commit it', go:'r3', here:true},
+    {tag:'n', label:'No: wait (see the partition chapter)', go:'p2'}]},
+  title:'Majority stored it. Committed.',
+  text:`<p>Once 3 of 5 have the entry, the leader marks it <b>committed</b> and applies it to its state machine.</p>
+  <p>Committed means it will survive any future leader change.</p>`},
+ {id:'r4', ch:'repl', state:sR4, sm:{n:['L'],e:[]},
+  msgs:[[M('S3','C','ok','done'), ...fan('S3',others('S3'),'hb','commit=1')]],
+  title:'Client gets its answer. Followers learn the commit.',
+  text:`<p>The leader replies to the client.</p>
+  <p>The next AppendEntries carries <span class="mono">leaderCommit=1</span>. Followers then commit and apply index 1 too.</p>`},
+ {id:'r5', ch:'repl', state:sR5, sm:{n:['L'],e:[]},
+  title:'S5 crashes.',
+  text:`<p>One server down. Does the cluster stop?</p>`},
+ {id:'r6', ch:'repl', state:sR6, diag:{type:'commit',hl:['m1','m2','m3']}, sm:{n:['L'],e:[]},
+  msgs:[[M('C','S3','req','y=7')], [...fan('S3',['S1','S2','S4'],'app','AE #2'), M('S3','S5','app','AE #2')], back(['S1','S2','S4'],'S3','ok','ack #2')],
+  fork:{q:'When S5 comes back, does its log match the leader’s?', opts:[
+    {tag:'y', label:'Yes: normal replication continues', go:'c1'},
+    {tag:'n', label:'No: it’s missing entries', go:'l1'}]},
+  title:'No. y=7 still commits with 4 of 5.',
+  text:`<p>The leader keeps retrying S5, but doesn’t wait for it. 4 copies is a majority.</p>
+  <p>Raft with 5 servers survives 2 failures.</p>`},
+
+ {id:'l1', ch:'lag', from:LG0, state:sL1, diag:{type:'append',hl:['a1','a2','a3','a3n']}, sm:{n:['L'],e:[]},
+  msgs:[[M('C','S3','req','z=9')], fan('S3',others('S3'),'app','AE prev=#2'), [...back(['S1','S2','S4'],'S3','ok','ack #3'), M('S5','S3','no','no #2')]],
+  title:'S5 is back, but behind. It rejects.',
+  text:`<p>S5 restarted with only <span class="mono">x=5</span>. A new command <span class="mono">z=9</span> arrives.</p>
+  <p>The leader sends <span class="mono">prevLogIndex=2, prevLogTerm=2</span>. S5 has nothing at index 2, so the check fails.</p>
+  <p>The others accept, so z=9 commits anyway.</p>`},
+ {id:'l2', ch:'lag', state:sL2, diag:{type:'append',hl:['a1','a2','a3','a4','a5']}, sm:{n:['L'],e:[]},
+  msgs:[[M('S3','S5','app','AE #2-3 prev=#1'), ...fan('S3',['S1','S2','S4'],'hb','commit=3')], [M('S5','S3','ok','ack #3')]],
+  title:'Leader steps back one entry and retries. Back to main path.',
+  text:`<p>The leader keeps a <b>nextIndex</b> per follower. On rejection it decrements it and tries again.</p>
+  <p>At <span class="mono">prev=#1</span> the logs match. S5 accepts entries 2 and 3 and is caught up.</p>
+  <p>In practice the follower can hint where it diverged, so this takes fewer round trips.</p>`},
+
+ {id:'c1', ch:'crash', from:K0, state:sK1, diag:{type:'commit',hl:['m1','m2','m3']}, sm:{n:['L'],e:[]},
+  msgs:[[M('C','S3','req','w=1')], [M('S3','S1','app','AE #4'), M('S3','S2','app','AE #4'), M('S3','S4','lost','AE #4'), M('S3','S5','lost','AE #4')], back(['S1','S2'],'S3','ok','ack #4')],
+  title:'w=1 reaches only S1 and S2.',
+  text:`<p>The messages to S4 and S5 get lost. Still, S3 + S1 + S2 is a majority, so <span class="mono">w=1</span> is committed.</p>
+  <p>S4 and S5 are now one entry behind.</p>`},
+ {id:'c2', ch:'crash', state:sK2, sm:{n:['L'],e:[]},
+  title:'Then the leader S3 crashes.',
+  text:`<p>No more heartbeats. Followers’ timers start running down.</p>
+  <p>Question: can a new leader lose the committed <span class="mono">w=1</span>?</p>`},
+ {id:'c3', ch:'crash', state:sK3, tick:['S4'], sm:{n:['C'],e:['FC']},
+  title:'S4 times out first and runs for T3.',
+  text:`<p>S4 is missing <span class="mono">w=1</span>. Its last entry is index 3, term 2.</p>`},
+ {id:'c4', ch:'crash', state:sK4, diag:{type:'vote',hl:['v1','v2','v3','v3n']}, sm:{n:['C'],e:[]},
+  msgs:[fan('S4',['S1','S2','S3','S5'],'req','Vote? T3 last=#3'), [M('S1','S4','no','my log is newer'), M('S2','S4','no','my log is newer'), M('S5','S4','ok','yes')]],
+  fork:{q:'Is the candidate’s log at least as up to date as the voter’s?', opts:[
+    {tag:'y', label:'Yes: grant (S5)', go:'c4', here:true},
+    {tag:'n', label:'No: deny (S1, S2)', go:'c4', here:true}]},
+  title:'S1 and S2 refuse. Their logs are longer.',
+  text:`<p>This is the <b>election restriction</b>. A voter refuses a candidate whose log is behind its own.</p>
+  <p>Any committed entry lives on a majority. Any winner needs a majority. Those two sets overlap, so a winner always has every committed entry.</p>
+  <p>S4 gets 2 votes. Not enough.</p>`},
+ {id:'c5', ch:'crash', state:sK5, tick:['S1'], sm:{n:['C'],e:['FC']},
+  title:'S1 times out and runs for T4.',
+  text:`<p>S1 has the full log, including <span class="mono">w=1</span>.</p>`},
+ {id:'c6', ch:'crash', state:sK6, diag:{type:'vote',hl:['v1','v2','v3','v4']}, sm:{n:['L','F'],e:['CL','CF']},
+  msgs:[fan('S1',['S2','S3','S4','S5'],'req','Vote? T4 last=#4'), back(['S2','S4','S5'],'S1','ok','yes')],
+  title:'S1 wins T4.',
+  text:`<p>S1’s log is at least as up to date as everyone’s, so all live servers vote yes.</p>
+  <p>S4 sees the higher term and drops back to follower.</p>`},
+ {id:'c7', ch:'crash', state:sK7, diag:{type:'append',hl:['a1','a2','a3','a3n','a4','a5']}, sm:{n:['L'],e:[]},
+  msgs:[fan('S1',['S2','S4','S5'],'app','AE prev=#4'), [M('S2','S1','ok','ok'), M('S4','S1','no','no #4'), M('S5','S1','no','no #4')], fan('S1',['S4','S5'],'app','AE #4 prev=#3'), back(['S4','S5'],'S1','ok','ack #4')],
+  title:'The new leader brings everyone up to date.',
+  text:`<p>Same repair as Branch B: reject, step back, retry. S4 and S5 get <span class="mono">w=1</span>.</p>
+  <p>The committed entry survived the crash.</p>`},
+
+ {id:'p1', ch:'part', from:P0, state:sP1, sm:{n:['L'],e:[]},
+  title:'The network splits in two.',
+  text:`<p>S3 is back. Now the network breaks: <b>{S1, S2}</b> can’t talk to <b>{S3, S4, S5}</b>.</p>
+  <p>The leader S1 is on the small side.</p>`},
+ {id:'p2', ch:'part', state:sP2, diag:{type:'commit',hl:['m1','m1n']}, sm:{n:['L'],e:[]},
+  msgs:[[M('C','S1','req','v=3')], [M('S1','S2','app','AE #5'), ...fan('S1',['S3','S4','S5'],'app','AE #5')], [M('S2','S1','ok','ack #5')]],
+  fork:{q:'Is v=3 stored on a majority?', opts:[
+    {tag:'y', label:'Yes: commit', go:'r3'},
+    {tag:'n', label:'No: only 2 of 5. Wait.', go:'p2', here:true}]},
+  title:'Old leader takes a write, but can’t commit it.',
+  text:`<p>S1 still thinks it’s leader. It accepts <span class="mono">v=3</span> and gets it onto S2.</p>
+  <p>2 of 5 isn’t a majority. The entry stays uncommitted and the client gets no answer.</p>`},
+ {id:'p3', ch:'part', state:sP3, tick:['S4'], sm:{n:['C'],e:['FC']},
+  title:'The big side stops hearing heartbeats.',
+  text:`<p>S4 times out and runs for <b>T5</b>.</p>`},
+ {id:'p4', ch:'part', state:sP4, diag:{type:'vote',hl:['v1','v2','v3','v4']}, sm:{n:['L'],e:['CL']},
+  msgs:[[...fan('S4',['S3','S5'],'req','Vote? T5'), ...fan('S4',['S1','S2'],'req','Vote? T5')], back(['S3','S5'],'S4','ok','yes')],
+  title:'S4 wins T5 with 3 votes.',
+  text:`<p>Now there are two “leaders”: S1 in T4 and S4 in T5.</p>
+  <p>That’s fine. Only one of them can reach a majority, so only one can commit.</p>`},
+ {id:'p5', ch:'part', state:sP5, diag:{type:'commit',hl:['m1','m2','m3']}, sm:{n:['L'],e:[]},
+  msgs:[[M('C','S4','req','u=8')], [...fan('S4',['S3','S5'],'app','AE #5'), ...fan('S4',['S1','S2'],'app','AE #5')], back(['S3','S5'],'S4','ok','ack #5')],
+  title:'The majority side keeps working.',
+  text:`<p>A client writes <span class="mono">u=8</span> to S4. It reaches S3 and S5 and commits at index 5.</p>
+  <p>Note: index 5 now holds different entries on each side. Only one is committed.</p>`},
+ {id:'p6', ch:'part', state:sP6, diag:{type:'append',hl:['a1','a2','a3','a3n']}, sm:{n:['F'],e:['LF']},
+  msgs:[fan('S4',['S1','S2'],'app','AE T5 prev=#5'), back(['S1','S2'],'S4','no','mismatch #5')],
+  fork:{q:'Does S1 see a higher term?', opts:[
+    {tag:'y', label:'Yes (T5 > T4): step down to follower', go:'p6', here:true},
+    {tag:'n', label:'No: it would reject the message as stale', go:'p6'}]},
+  title:'Network heals. S1 sees T5 and steps down.',
+  text:`<p>S4’s message has term 5. S1 is on term 4, so it adopts T5 and becomes a follower.</p>
+  <p>But the log check fails: S4 expects index 5 from term 5, and S1 has term 4 there.</p>`},
+ {id:'p7', ch:'part', state:sP7, diag:{type:'append',hl:['a1','a2','a3','a4','a5']}, sm:{n:['L'],e:[]},
+  msgs:[fan('S4',['S1','S2'],'app','AE #5 prev=#4'), back(['S1','S2'],'S4','ok','ack #5')],
+  title:'The uncommitted entry is overwritten.',
+  text:`<p>At <span class="mono">prev=#4</span> the logs match. S1 and S2 delete <span class="mono">v=3</span> and take <span class="mono">u=8</span>.</p>
+  <p>This is safe. <span class="mono">v=3</span> was never committed, and its client never got a success reply. It will retry.</p>
+  <p><b>Summary:</b> one leader per term, entries commit on a majority, and voters only pick candidates with complete logs. That’s Raft.</p>`}
+];
+steps.forEach((s,i) => s.i = i);
+const byId = Object.fromEntries(steps.map(s => [s.id, s]));
+
+// ---------- rendering: cluster ----------
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const crossPart = (part,a,b) => !!part && a !== 'C' && b !== 'C' && part.includes(a) !== part.includes(b);
+
+function drawCluster(state, ring = {}){
+  let lk = '';
+  for (let i = 0; i < IDS.length; i++) for (let j = i+1; j < IDS.length; j++){
+    const a = IDS[i], b = IDS[j], [x1,y1] = POS[a], [x2,y2] = POS[b];
+    const cut = crossPart(state.part, a, b);
+    lk += `<line class="link ${cut?'cut':''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+  }
+  if (state.part){
+    lk += `<text x="20" y="440" class="nsub" style="fill:var(--no)">Red dashed links: network partition</text>`;
+  }
+  const [cx,cy] = POS.C;
+  lk += `<rect x="${cx-42}" y="${cy-16}" width="84" height="32" rx="6" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.5"/>
+         <text x="${cx}" y="${cy+5}" text-anchor="middle" class="nsub">Client</text>`;
+  $('#g-links').innerHTML = lk;
+
+  let nd = '';
+  for (const id of IDS){
+    const n = state.nodes[id], [x,y] = POS[id], [rname, rvar] = ROLE[n.r];
+    const rv = ring[id] !== undefined ? ring[id] : (n.r === 'F' || n.r === 'C') ? 1 : 0;
+    nd += `<circle cx="${x}" cy="${y}" r="42" fill="none" stroke="var(--line)" stroke-width="4"/>`;
+    if (rv > 0) nd += `<circle cx="${x}" cy="${y}" r="42" fill="none" stroke="var(--fol)" stroke-width="4" pathLength="100" stroke-dasharray="${(rv*100).toFixed(1)} 100" transform="rotate(-90 ${x} ${y})"/>`;
+    nd += `<circle cx="${x}" cy="${y}" r="34" fill="var(${rvar})"/>`;
+    if (n.r === 'L') nd += `<circle cx="${x}" cy="${y}" r="38" fill="none" stroke="var(--lead)" stroke-width="2"/>`;
+    nd += `<text x="${x}" y="${y+5}" text-anchor="middle" class="nlabel">${id}</text>`;
+    const below = y + 58;
+    nd += `<text x="${x}" y="${below}" text-anchor="middle" class="nsub">${rname}${n.r==='X'?'':' · T'+n.t}</text>`;
+    let extra = '';
+    if (n.r === 'C') extra = `votes ${n.vc}/5`;
+    else if (n.r === 'F' && n.v) extra = `voted ${n.v}`;
+    if (extra) nd += `<text x="${x}" y="${below+15}" text-anchor="middle" class="nsub2">${extra}</text>`;
+  }
+  $('#g-nodes').innerHTML = nd;
+}
+
+// ---------- rendering: logs ----------
+function drawLog(state, prev){
+  let max = 5;
+  for (const id of IDS) max = Math.max(max, state.nodes[id].log.length);
+  let h = `<div class="lhead">${Array.from({length:max},(_,i)=>`<span>#${i+1}</span>`).join('')}</div>`;
+  for (const id of IDS){
+    const n = state.nodes[id], p = prev.nodes[id];
+    h += `<div class="lrow ${n.r==='X'?'dead':''}"><div class="lname">${id}${n.r==='L'?' ★':''}</div>`;
+    for (let i = 0; i < max; i++){
+      const e = n.log[i];
+      if (!e){ h += `<div class="cell empty"></div>`; continue; }
+      const pe = p.log[i];
+      const isNew = !pe || pe.c !== e.c || pe.t !== e.t;
+      const com = i < n.ci;
+      h += `<div class="cell ${com?'com':'unc'} ${isNew?'new':''}" style="background:var(--t${e.t})">${e.c}<small>T${e.t}</small></div>`;
+    }
+    h += `</div>`;
+  }
+  $('#logs').innerHTML = h;
+}
+
+// ---------- rendering: text, fork, flow, state machine ----------
+function renderText(st){
+  const ch = CH.find(c => c.id === st.ch);
+  $('#chap').textContent = ch.title;
+  $('#chap').className = 'chap' + (ch.branchOf ? ' br' : '');
+  $('#title').textContent = st.title;
+  $('#text').innerHTML = st.text;
+  $('#count').textContent = `Step ${st.i+1} of ${steps.length}`;
+  if (!st.fork){ $('#fork').innerHTML = ''; return; }
+  const f = st.fork;
+  $('#fork').innerHTML = `<div class="forkbox"><div class="q">Branch point: ${f.q}</div><div class="opts">${
+    f.opts.map(o => `<button class="opt ${o.here?'here':''}" data-go="${o.go}"><span class="tag ${o.tag}">${o.tag==='y'?'Yes':'No'}</span>${o.label}${o.here?' (shown here)':''}</button>`).join('')
+  }</div></div>`;
+}
+
+function renderFlow(d){
+  if (!d){ $('#flow').innerHTML = '<p class="muted small">No message check in this step.</p>'; return; }
+  const f = FLOWS[d.type], hl = new Set(d.hl);
+  let h = `<div class="ftitle">${f.title}</div>`;
+  f.items.forEach((it, i) => {
+    if (i) h += `<div class="fdown ${hl.has(it.id)?'on':''}">↓ ${f.items[i-1].q ? 'yes' : ''}</div>`;
+    h += `<div class="frow"><div class="fbox ${it.q?'q':'a'} ${hl.has(it.id)?'on':''}">${it.q || it.a}</div>`;
+    if (it.no) h += `<div class="fno ${hl.has(it.id+'n')?'on':''}"><span>no:</span> ${it.no}</div>`;
+    h += `</div>`;
+  });
+  $('#flow').innerHTML = h;
+}
+
+function renderSM(sm){
+  const on = sm || {n:[],e:[]};
+  const N = x => on.n.includes(x) ? 'on' : '', E = x => on.e.includes(x) ? 'on' : '';
+  const box = (id,x,label) => `<rect class="sm-box ${N(id)}" x="${x}" y="70" width="110" height="44" rx="8"/><text class="sm-t" x="${x+55}" y="97" text-anchor="middle">${label}</text>`;
+  const edge = (id,d,lx,ly,label,anchor='middle') => `<path class="sm-e ${E(id)}" d="${d}" marker-end="url(#${E(id)?'smb':'sma'})"/><text class="sm-l ${E(id)}" x="${lx}" y="${ly}" text-anchor="${anchor}">${label}</text>`;
+  $('#sm').innerHTML = `<defs><marker id="sma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--muted)"/></marker><marker id="smb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--accent)"/></marker></defs>
+    ${edge('start','M75 22 L75 68',84,36,'start','start')}
+    ${edge('FC','M130 84 L203 84',166,78,'timeout')}
+    ${edge('CF','M205 102 L132 102',168,118,'sees leader or higher term')}
+    ${edge('CC','M240 70 C 220 18, 300 18, 282 68',300,26,'split vote: new term','start')}
+    ${edge('CL','M315 92 L388 92',352,84,'majority')}
+    ${edge('LF','M445 114 C 445 178, 75 178, 75 116',260,168,'sees higher term')}
+    ${box('F',20,'Follower')}${box('C',205,'Candidate')}${box('L',390,'Leader')}`;
+}
+
+function renderMap(){
+  const dots = ch => steps.filter(s => s.ch === ch).map(s =>
+    `<button class="dot ${s.i===cur?'cur':''} ${s.i<cur?'seen':''}" data-i="${s.i}" title="${s.title.replace(/"/g,'&quot;')}" aria-label="Step ${s.i+1}: ${s.title.replace(/"/g,'&quot;')}"></button>`).join('');
+  $('#map').innerHTML = CH.filter(c => !c.branchOf).map(c => {
+    const br = CH.filter(b => b.branchOf === c.id);
+    return `<div class="mcol"><div class="mtitle">${c.title}</div><div class="dots">${dots(c.id)}</div>${
+      br.map(b => `<div class="branch"><div class="fork">↳ ${b.fork}</div><div class="mtitle">${b.title}</div><div class="dots">${dots(b.id)}</div></div>`).join('')
+    }</div>`;
+  }).join('');
+}
+
+// ---------- animation ----------
+let cur = 0, runId = 0, autoTimer = null, autoOn = false;
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SPEED = reduce ? 0.4 : 1;
+
+function anim(ms, id, onFrame, done){
+  const t0 = performance.now();
+  const f = now => {
+    if (id !== runId) return;
+    const p = Math.min(1, (now - t0) / ms);
+    onFrame(p);
+    if (p < 1) requestAnimationFrame(f); else done();
+  };
+  requestAnimationFrame(f);
+}
+
+function runWaves(waves, state, prevState, id, done){
+  let w = 0;
+  const g = $('#g-msgs');
+  const next = () => {
+    if (id !== runId) return;
+    g.innerHTML = '';
+    if (w >= waves.length) return done();
+    const ms = waves[w++];
+    const els = ms.map(m => {
+      const deadTo = m.to !== 'C' && (state.nodes[m.to].r === 'X' || prevState.nodes[m.to].r === 'X');
+      const lost = m.k === 'lost' || deadTo || crossPart(state.part, m.f, m.to);
+      const color = lost ? '--lost' : m.k === 'ok' ? '--ok' : m.k === 'no' ? '--no' : m.k === 'hb' ? '--fol' : '--req';
+      const el = document.createElementNS('http://www.w3.org/2000/svg','g');
+      el.innerHTML = `<circle r="7" fill="var(${color})"/><text class="mlabel" x="10" y="-8" fill="var(${color})">${m.l}</text><text class="xmark" x="-6" y="6" font-size="20" font-weight="700" fill="var(--no)" opacity="0">✕</text>`;
+      g.appendChild(el);
+      return {m, el, lost};
+    });
+    anim(1000 * SPEED, id, p => {
+      for (const e of els){
+        const [x1,y1] = POS[e.m.f], [x2,y2] = POS[e.m.to];
+        const q = e.lost ? Math.min(p, 0.5) : p;
+        const ease = q < .5 ? 2*q*q : 1 - Math.pow(-2*q+2,2)/2;
+        e.el.setAttribute('transform', `translate(${x1+(x2-x1)*ease},${y1+(y2-y1)*ease})`);
+        if (e.lost && p > 0.5){
+          e.el.querySelector('.xmark').setAttribute('opacity', 1);
+          e.el.querySelector('circle').setAttribute('opacity', 1 - (p-0.5)*2);
+        }
+      }
+    }, () => setTimeout(next, 120 * SPEED));
+  };
+  next();
+}
+
+function prevStateOf(st){
+  if (st.from) return st.from;
+  const p = steps[st.i - 1];
+  return p && p.ch === st.ch ? p.state : st.state;
+}
+
+function show(i, animate = true){
+  clearTimeout(autoTimer);
+  runId++;
+  const id = runId;
+  cur = Math.max(0, Math.min(steps.length - 1, i));
+  const st = steps[cur], prev = prevStateOf(st);
+  renderText(st); renderFlow(st.diag); renderSM(st.sm); renderMap();
+  $('#prev').disabled = cur === 0;
+  $('#next').disabled = cur === steps.length - 1;
+  $('#g-msgs').innerHTML = '';
+
+  const finish = () => {
+    if (id !== runId) return;
+    drawCluster(st.state); drawLog(st.state, prev);
+    if (autoOn && cur < steps.length - 1) autoTimer = setTimeout(() => show(cur + 1), 3500);
+  };
+  if (!animate){ drawCluster(st.state); drawLog(st.state, st.state); return; }
+
+  drawCluster(prev); drawLog(prev, prev);
+  const afterTick = () => runWaves(st.msgs || [], st.state, prev, id, finish);
+  if (st.tick){
+    anim(1100 * SPEED, id, p => {
+      const ring = {}; st.tick.forEach(t => ring[t] = 1 - p);
+      drawCluster(prev, ring);
+    }, afterTick);
+  } else afterTick();
+}
+
+// ---------- wiring ----------
+$('#next').onclick = () => show(cur + 1);
+$('#prev').onclick = () => show(cur - 1);
+$('#replay').onclick = () => show(cur);
+$('#auto').onclick = () => {
+  autoOn = !autoOn;
+  $('#auto').setAttribute('aria-pressed', autoOn);
+  if (autoOn) show(cur); else clearTimeout(autoTimer);
+};
+$('#map').addEventListener('click', e => { const b = e.target.closest('.dot'); if (b) show(+b.dataset.i); });
+$('#fork').addEventListener('click', e => { const b = e.target.closest('.opt'); if (b) show(byId[b.dataset.go].i); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') show(cur + 1);
+  if (e.key === 'ArrowLeft') show(cur - 1);
+});
+show(0);
+</script>
+</body>
+</html>
