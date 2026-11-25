@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Multi-Raft, step by step</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --ink:#17202b; --muted:#5e6875; --line:#d3d9e0;
+  --accent:#2457c5; --ok:#1f8a5a; --no:#c23b32; --warn:#c98a12; --lost:#98a0aa; --dead:#c3c8ce; --onbg:#fff6d6;
+  --r1:#2f6fde; --r2:#c2410c; --r3:#1f8a5a; --r4:#8b3fc4; --r5:#b8860b; --r6:#0f8b8d; --r7:#c0396b; --r8:#566174;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#11161d; --panel:#19212b; --ink:#e6ebf1; --muted:#97a2b0; --line:#2c3644;
+    --accent:#6f9cf5; --ok:#3fbf83; --no:#ec6a60; --warn:#e3a73a; --lost:#6c7480; --dead:#3a424d; --onbg:#3a3418;
+    --r1:#6f9cf5; --r2:#f08a4b; --r3:#3fbf83; --r4:#b77ae8; --r5:#e3b341; --r6:#3cc4c6; --r7:#ec6f9d; --r8:#9aa6b8;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11161d; --panel:#19212b; --ink:#e6ebf1; --muted:#97a2b0; --line:#2c3644;
+  --accent:#6f9cf5; --ok:#3fbf83; --no:#ec6a60; --warn:#e3a73a; --lost:#6c7480; --dead:#3a424d; --onbg:#3a3418;
+  --r1:#6f9cf5; --r2:#f08a4b; --r3:#3fbf83; --r4:#b77ae8; --r5:#e3b341; --r6:#3cc4c6; --r7:#ec6f9d; --r8:#9aa6b8;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1260px;margin:0 auto;padding:20px 18px 40px}
+h1{font-size:26px;font-weight:600;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 16px;max-width:72ch}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace}
+
+.map{display:flex;gap:10px;overflow-x:auto;padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;margin-bottom:14px}
+.mcol{min-width:128px;flex:1}
+.mtitle{font-size:13px;font-weight:600;margin-bottom:6px;white-space:nowrap}
+.dots{display:flex;flex-wrap:wrap;gap:5px}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);background:transparent;padding:0;cursor:pointer}
+.dot.seen{background:var(--line)}
+.dot.cur{background:var(--accent);border-color:var(--accent);transform:scale(1.25)}
+.dot:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.branch{margin-top:10px;padding:8px 8px 8px 10px;border-left:2px dashed var(--warn);border-radius:0 6px 6px 0}
+.branch .mtitle{color:var(--warn)}
+.fork{font-size:12px;color:var(--muted);margin-bottom:2px}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:920px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+svg{display:block;max-width:100%;height:auto}
+#stage{width:100%}
+
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.btn{font:inherit;font-size:14px;padding:7px 14px;border-radius:7px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.btn:disabled{opacity:.4;cursor:default}
+.count{margin-left:auto;color:var(--muted);font-size:13px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;width:16px;height:11px;border-radius:3px;vertical-align:middle;margin-right:4px}
+
+.chap{font-size:13px;color:var(--muted)}
+.chap.br{color:var(--warn)}
+h2{font-size:20px;margin:2px 0 8px;font-weight:600;line-height:1.3}
+.txt p{margin:0 0 8px;max-width:62ch}
+.txt b{font-weight:600}
+.forkbox{margin:12px 0 4px;padding:10px 12px;border:1px solid var(--line);border-radius:8px}
+.forkbox .q{font-weight:600;margin-bottom:6px}
+.opts{display:flex;flex-direction:column;gap:6px}
+.opt{text-align:left;font:inherit;font-size:14px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.opt.here{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.opt .tag{font-weight:600;margin-right:6px}
+.opt .tag.y{color:var(--ok)} .opt .tag.n{color:var(--no)}
+h3{font-size:14px;margin:16px 0 8px;font-weight:600}
+
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;font-weight:600;color:var(--muted);padding:4px 6px;border-bottom:1px solid var(--line)}
+td{padding:5px 6px;border-bottom:1px solid var(--line)}
+td .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.st-ok{color:var(--ok)} .st-warn{color:var(--warn);font-weight:600} .st-bad{color:var(--no);font-weight:600}
+.tablewrap{overflow-x:auto}
+
+.ks{font:500 11px "IBM Plex Mono",ui-monospace,monospace;fill:var(--ink)}
+.nh{font:600 15px "IBM Plex Sans",system-ui,sans-serif;fill:var(--ink)}
+.ns{font:400 11px "IBM Plex Sans",system-ui,sans-serif;fill:var(--muted)}
+.ct{font:600 12px "IBM Plex Mono",ui-monospace,monospace}
+.cs{font:400 10px "IBM Plex Mono",ui-monospace,monospace}
+.mlabel{font:500 11px "IBM Plex Mono",ui-monospace,monospace;paint-order:stroke;stroke:var(--panel);stroke-width:4px}
+.muted{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Multi-Raft, step by step</h1>
+  <p class="sub">Many small Raft groups instead of one big one. Press Next or use the arrow keys. Dashed paths in the map are branches.</p>
+
+  <nav class="map" id="map" aria-label="Chapters and steps"></nav>
+
+  <div class="grid">
+    <section class="panel">
+      <svg id="stage" viewBox="0 0 680 480" role="img" aria-label="Keyspace, nodes and the range replicas they hold">
+        <g id="g-ks"></g><g id="g-nodes"></g><g id="g-msgs"></g>
+      </svg>
+      <div class="controls">
+        <button class="btn" id="prev">Back</button>
+        <button class="btn primary" id="next">Next</button>
+        <button class="btn" id="replay">Replay</button>
+        <button class="btn" id="auto" aria-pressed="false">Autoplay</button>
+        <span class="count" id="count"></span>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--r1)"></i>leader replica ★</span>
+        <span><i style="border:2px solid var(--r1)"></i>follower replica</span>
+        <span><i style="border:2px dashed var(--r1)"></i>learner (non-voting)</span>
+        <span>Top bar: the keyspace, split into ranges</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="chap" id="chap"></div>
+      <h2 id="title"></h2>
+      <div class="txt" id="text"></div>
+      <div id="fork"></div>
+      <h3>Ranges</h3>
+      <div class="tablewrap" id="table"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+const NODES = ['N1','N2','N3','N4','N5'];
+const NX = {}; NODES.forEach((n,i) => NX[n] = 22 + i*130);   // box left x
+const NW = 116, NY = 200, NH = 262;
+const CLIENT = [340,108];
+const $ = s => document.querySelector(s);
+const letter = i => i >= 26 ? 'z' : String.fromCharCode(97 + i);
+const kx = i => 20 + i/26*640;
+
+// ---------- state helpers ----------
+// ranges: [id, lo, hi, fill]
+function S(ranges, rep, lead, o = {}){
+  return {
+    ranges: ranges.map(([id,lo,hi,fill]) => ({id, lo, hi, fill: fill ?? 0.35})),
+    rep, lead, down: o.down || [], learn: o.learn || {}, marks: o.marks || [], quiet: o.quiet || [], hot: o.hot || []
+  };
+}
+const M = (f,to,k,l,r) => ({f,to,k,l,r});
+const fan = (f,tos,k,l,r) => tos.map(to => M(f,to,k,l,r));
+const back = (fs,to,k,l,r) => fs.map(f => M(f,to,k,l,r));
+const rcolor = r => `var(--r${r.slice(1)})`;
+
+// ---------- layouts ----------
+const RG4 = [['R1',0,6],['R2',6,12],['R3',12,18],['R4',18,26]];
+const REP4 = {R1:['N1','N2','N4'], R2:['N2','N3','N5'], R3:['N1','N3','N4'], R4:['N2','N4','N5']};
+const LEAD4 = {R1:'N2', R2:'N3', R3:'N4', R4:'N5'};
+
+const RG8 = [['R1',0,3],['R2',3,6],['R3',6,9],['R4',9,12],['R5',12,15],['R6',15,18],['R7',18,22],['R8',22,26]];
+const REP8 = {R1:['N1','N2','N3'], R2:['N1','N2','N3'], R3:['N1','N2','N3'], R4:['N2','N4','N5'], R5:['N2','N4','N5'],
+              R6:['N3','N4','N5'], R7:['N3','N4','N5'], R8:['N4','N1','N5']};
+const LEAD8 = {R1:'N1', R2:'N1', R3:'N1', R4:'N2', R5:'N2', R6:'N3', R7:'N3', R8:'N4'};
+
+const RG5 = [['R1',0,6],['R2',6,12],['R3',12,15],['R5',15,18],['R4',18,26]];
+
+// ---------- states ----------
+const B1 = S([['R1',0,26,0.9]], {R1:['N1','N2','N3']}, {R1:'N1'});
+const B2 = S(RG4, REP4, LEAD4);
+
+const W1 = S(RG4, REP4, LEAD4, {marks:[{k:2,l:'cat',ok:true}]});
+const W2 = S(RG4, REP4, LEAD4, {marks:[{k:2,l:'cat',ok:true},{k:15,l:'pig',ok:true},{k:18,l:'sun',ok:true}]});
+
+const H0 = S(RG8, REP8, LEAD8);
+const H3 = S(RG8, REP8, LEAD8, {quiet:['R2','R3','R5','R6','R7','R8']});
+
+const SP0 = S([['R1',0,6],['R2',6,12],['R3',12,18,0.55],['R4',18,26]], REP4, LEAD4);
+const SP1 = S([['R1',0,6],['R2',6,12],['R3',12,18,1],['R4',18,26]], REP4, LEAD4);
+const REP5 = {...REP4, R5:['N1','N3','N4']};
+const SP3 = S(RG5.map(r => [...r, r[0]==='R3'||r[0]==='R5' ? 0.5 : 0.35]), REP5, {...LEAD4, R5:'N4'});
+
+const RB1 = {...SP3, hot:['N4']};
+const RB2 = {...SP3, lead:{...SP3.lead, R5:'N1'}, hot:['N4']};
+const RB3 = {...RB2, learn:{R5:['N5']}};
+const REPB = {...REP5, R5:['N1','N3','N5']};
+const RB4 = {...RB2, rep:REPB, hot:[]};
+
+const F1 = {...RB4, down:['N3']};
+const F2 = {...F1, lead:{...F1.lead, R2:'N5'}};
+const REPF = {...REPB, R2:['N2','N5','N1'], R3:['N1','N4','N2'], R5:['N1','N5','N4']};
+const F3 = {...F2, rep:REPF, down:['N3']};
+
+const Q1 = {...F1, down:['N3','N4']};
+const Q2 = {...Q1, lead:{...Q1.lead, R2:'N5', R3:null}};
+
+const T0 = {...F3};
+const T1 = {...F3, marks:[{k:2,l:'cat',ok:false},{k:19,l:'tea',ok:false}]};
+const T2 = {...F3, marks:[{k:2,l:'cat',ok:true},{k:19,l:'tea',ok:true}]};
+
+// ---------- chapters ----------
+const CH = [
+  {id:'why',   title:'1. Why split'},
+  {id:'route', title:'2. Routing writes'},
+  {id:'stale', title:'Branch A: stale route', branchOf:'route', fork:'if the client’s cache is out of date'},
+  {id:'hb',    title:'3. Heartbeats'},
+  {id:'split', title:'4. Range split'},
+  {id:'move',  title:'5. Rebalancing'},
+  {id:'fail',  title:'6. Node failure'},
+  {id:'quor',  title:'Branch B: quorum lost', branchOf:'fail', fork:'if a range loses 2 of 3 replicas'},
+  {id:'txn',   title:'7. Cross-range writes'}
+];
+
+// ---------- steps ----------
+const steps = [
+ {id:'b1', ch:'why', state:B1,
+  msgs:[[M('C','N1','req','put …','R1')], fan('N1',['N2','N3'],'req','append','R1'), back(['N2','N3'],'N1','ok','ack')],
+  title:'One Raft group for all the data.',
+  text:`<p>Plain Raft: one log, one leader. <b>Every</b> write in the whole keyspace goes through N1.</p>
+  <p>That leader’s CPU, disk and network are the ceiling. N4 and N5 sit idle. The log and snapshots grow with the entire dataset.</p>`},
+ {id:'b2', ch:'why', from:B1, state:B2,
+  title:'Split the keyspace into ranges.',
+  text:`<p>Cut the keys into <b>ranges</b> (CockroachDB’s term; TiKV calls them regions). Here: a–g, g–m, m–s, s–z.</p>
+  <p>Each range is its <b>own Raft group</b> with 3 replicas, its own log, its own term and its own leader.</p>
+  <p>Each node hosts replicas of many ranges. Leaders are spread out, so write load is spread out too.</p>`},
+
+ {id:'w1', ch:'route', from:B2, state:W1,
+  msgs:[[M('C','N2','req','put cat','R1')], fan('N2',['N1','N4'],'req','R1 append','R1'), back(['N1','N4'],'N2','ok','ack','R1'), [M('N2','C','ok','done')]],
+  title:'A write goes to the leader of its range.',
+  text:`<p>“cat” falls in a–g, so it belongs to <b>R1</b>. The client looks up R1 in range metadata (usually cached) and sends the write to R1’s leader, N2.</p>
+  <p>From here it’s normal Raft, but only among R1’s three replicas. N3 and N5 never see it.</p>
+  <p>In CockroachDB the request goes to the range’s <b>leaseholder</b>, which is normally the same replica as the Raft leader.</p>`},
+ {id:'w2', ch:'route', state:W2,
+  msgs:[[M('C','N4','req','put pig','R3'), M('C','N5','req','put sun','R4')],
+        [...fan('N4',['N1','N3'],'req','R3 append','R3'), ...fan('N5',['N2','N4'],'req','R4 append','R4')],
+        [...back(['N1','N3'],'N4','ok','ack','R3'), ...back(['N2','N4'],'N5','ok','ack','R4')]],
+  fork:{q:'Was the client’s cached route still correct?', opts:[
+    {tag:'y', label:'Yes: write goes straight to the leader', go:'w2', here:true},
+    {tag:'n', label:'No: the leader moved', go:'a1'}]},
+  title:'Different ranges, fully in parallel.',
+  text:`<p>“pig” goes to R3 (leader N4). “sun” goes to R4 (leader N5). At the same time.</p>
+  <p>The two Raft groups don’t coordinate at all. More ranges and more nodes means more parallel leaders.</p>`},
+
+ {id:'a1', ch:'stale', from:B2, state:B2,
+  msgs:[[M('C','N1','req','put cat','R1')], [M('N1','C','no','not leader: try N2')]],
+  title:'The client sends to an old leader.',
+  text:`<p>The client’s cache says R1’s leader is N1. That was true earlier. Leadership has since moved to N2.</p>
+  <p>N1 is only a follower for R1. It refuses and returns a hint: “try N2”.</p>`},
+ {id:'a2', ch:'stale', state:W1,
+  msgs:[[M('C','N2','req','put cat','R1')], fan('N2',['N1','N4'],'req','R1 append','R1'), back(['N1','N4'],'N2','ok','ack','R1'), [M('N2','C','ok','done')]],
+  title:'Update the cache and retry. Back to main path.',
+  text:`<p>The client updates its cache and retries at N2. Success.</p>
+  <p>Stale routes cost one extra round trip. They never break correctness, because only the real leader can commit.</p>`},
+
+ {id:'h1', ch:'hb', from:H0, state:H0,
+  msgs:[Object.entries(REP8).flatMap(([r,ns]) => fan(LEAD8[r], ns.filter(n => n !== LEAD8[r]), 'hb', 'hb', r))],
+  title:'Zoom out: 8 ranges. Naive heartbeats.',
+  text:`<p>Every leader heartbeats every follower of every range it leads.</p>
+  <p>8 ranges × 2 followers = <b>16 messages</b> per tick. Real nodes host thousands of ranges. That’s a flood of tiny packets, mostly between the same few node pairs.</p>`},
+ {id:'h2', ch:'hb', state:H0,
+  msgs:[[M('N1','N2','co','♥ R1 R2 R3'), M('N1','N3','co','♥ R1 R2 R3'), M('N2','N4','co','♥ R4 R5'), M('N2','N5','co','♥ R4 R5'),
+         M('N3','N4','co','♥ R6 R7'), M('N3','N5','co','♥ R6 R7'), M('N4','N1','co','♥ R8'), M('N4','N5','co','♥ R8')]],
+  title:'Coalesced: one heartbeat per node pair.',
+  text:`<p>Instead, each node bundles all its heartbeats for a given peer into <b>one message</b>.</p>
+  <p>Here: <b>8 messages</b> instead of 16. The real win is scaling: cost now grows with the number of node pairs, not the number of ranges. CockroachDB does this.</p>`},
+ {id:'h3', ch:'hb', state:H3,
+  msgs:[[...fan('N1',['N2','N3'],'hb','hb','R1'), ...fan('N2',['N4','N5'],'hb','hb','R4')]],
+  title:'Idle ranges go quiet.',
+  text:`<p>Most ranges see no writes most of the time. CockroachDB <b>quiesces</b> them: they stop ticking and heartbeating entirely.</p>
+  <p>Only active ranges (R1 and R4 here) keep the usual Raft chatter. A quiet range wakes up on its next request.</p>`},
+
+ {id:'s1', ch:'split', from:SP0, state:SP1,
+  msgs:[[M('C','N4','req','put o…','R3'), M('C','N4','req','put p…','R3')], fan('N4',['N1','N3'],'req','R3 append','R3'), back(['N1','N3'],'N4','ok','ack','R3')],
+  title:'R3 keeps growing.',
+  text:`<p>Writes keep landing in m–s. Watch the fill bar on R3 in the keyspace.</p>
+  <p>Past a size threshold (or under heavy load), the range should split. Big ranges mean big snapshots and one hot leader.</p>`},
+ {id:'s2', ch:'split', state:SP1,
+  msgs:[fan('N4',['N1','N3'],'req','R3: split @p','R3'), back(['N1','N3'],'N4','ok','ack','R3')],
+  title:'The split is just another Raft command.',
+  text:`<p>R3’s leader proposes <span class="mono">split at “p”</span> through R3’s own log.</p>
+  <p>It commits like any write. So every R3 replica applies the split at the same point in the log. No extra coordination protocol needed.</p>`},
+ {id:'s3', ch:'split', state:SP3,
+  title:'Two ranges, same replicas.',
+  text:`<p>R3 now covers m–p. The new <b>R5</b> covers p–s.</p>
+  <p>R5 starts on the same three nodes, as a new Raft group with its own log. Splitting moves no data. It just redraws a boundary.</p>`},
+
+ {id:'r1', ch:'move', from:SP3, state:RB1,
+  title:'N4 is now overloaded.',
+  text:`<p>N4 holds 4 replicas and leads 2 ranges (R3, R5). N1 leads nothing.</p>
+  <p>A background rebalancer (CockroachDB’s allocator, TiKV’s Placement Driver) spots the imbalance. It has two tools.</p>`},
+ {id:'r2', ch:'move', state:RB2,
+  msgs:[[M('N4','N1','req','R5 TimeoutNow','R5')], fan('N1',['N3','N4'],'req','R5 vote?','R5'), back(['N3','N4'],'N1','ok','yes','R5')],
+  fork:{q:'Is moving the leader enough?', opts:[
+    {tag:'y', label:'Yes: transfer leadership only (cheap)', go:'r2', here:true},
+    {tag:'n', label:'No: move a replica to another node', go:'r3'}]},
+  title:'Tool 1: transfer leadership.',
+  text:`<p>N4 makes sure N1 is caught up on R5, then sends <span class="mono">TimeoutNow</span>. N1 starts an election right away and wins.</p>
+  <p>No data moves. Only R5’s write load shifts from N4 to N1.</p>`},
+ {id:'r3', ch:'move', state:RB3,
+  msgs:[[M('N1','N5','snap','R5 snapshot','R5')]],
+  title:'Tool 2: move a replica. First, a learner.',
+  text:`<p>To take R5 off N4 entirely, first add a replica on N5 as a <b>learner</b>. Learners receive the log but don’t vote and don’t count toward quorum.</p>
+  <p>The leader sends it a snapshot. A slow catch-up can’t hurt availability.</p>`},
+ {id:'r4', ch:'move', state:RB4,
+  msgs:[fan('N1',['N3','N4','N5'],'req','R5 conf +N5 −N4','R5'), back(['N3','N5'],'N1','ok','ack','R5')],
+  title:'Swap voters with a config change.',
+  text:`<p>Once N5 is caught up, R5 commits a membership change through its own log: promote N5, remove N4. Joint consensus keeps the swap safe.</p>
+  <p>N4 drops its R5 replica. Now every node holds 3 replicas and leads 1 range.</p>`},
+
+ {id:'f1', ch:'fail', from:RB4, state:F1,
+  fork:{q:'Does every range still have 2 of its 3 replicas?', opts:[
+    {tag:'y', label:'Yes: affected ranges recover on their own', go:'f2'},
+    {tag:'n', label:'No: some range lost its majority', go:'q1'}]},
+  title:'N3 crashes.',
+  text:`<p>N3 held replicas of R2 (as leader), R3 and R5.</p>
+  <p>Only those three groups notice. R1 and R4 have nothing on N3 and carry on.</p>`},
+ {id:'f2', ch:'fail', state:F2,
+  msgs:[[M('N5','N2','req','R2 vote?','R2'), M('N4','N1','req','R3 append','R3')], [M('N2','N5','ok','yes','R2'), M('N1','N4','ok','ack','R3')]],
+  title:'Each group handles it independently.',
+  text:`<p><b>R2</b> lost its leader. It runs an election among N2 and N5. N5 wins.</p>
+  <p><b>R3</b> and <b>R5</b> only lost a follower. Their leaders still have 2 of 3, so writes keep committing. Here R3 commits with N4 + N1.</p>`},
+ {id:'f3', ch:'fail', state:F3,
+  msgs:[[M('N5','N1','snap','R2 snapshot','R2'), M('N4','N2','snap','R3 snapshot','R3'), M('N1','N4','snap','R5 snapshot','R5')]],
+  title:'Up-replicate to restore 3 copies.',
+  text:`<p>Once N3 is declared dead, each under-replicated range adds a replica elsewhere, using the learner + snapshot flow.</p>
+  <p>The repairs come from different leaders to different nodes, in parallel. Recovery is spread across the cluster instead of hammering one node.</p>`},
+
+ {id:'q1', ch:'quor', from:F1, state:Q1,
+  title:'N4 also crashes.',
+  text:`<p>Two nodes down. Look at <b>R3</b>: its replicas were N1, N3 and N4. Only N1 is left.</p>`},
+ {id:'q2', ch:'quor', state:Q2,
+  msgs:[[...fan('N1',['N3','N4'],'req','R3 vote?','R3'), M('N5','N2','req','R2 vote?','R2')], [M('N2','N5','ok','yes','R2')]],
+  title:'R3 is stuck. The rest of the cluster isn’t. Back to main path.',
+  text:`<p>N1 can’t get 2 votes for R3. Keys m–p are unavailable until N3 or N4 returns.</p>
+  <p>R2 still elects a leader, and R1, R4, R5 keep serving. The blast radius is per range.</p>
+  <p>For data that must survive 2 failures, give its ranges 5 replicas.</p>`},
+
+ {id:'t1', ch:'txn', from:T0, state:T1,
+  msgs:[[M('C','N2','req','txn: cat, tea')],
+        [...fan('N2',['N1','N4'],'req','R1 rec+intent','R1'), M('N2','N5','req','intent tea','R4')],
+        [...back(['N1','N4'],'N2','ok','ack','R1'), ...fan('N5',['N2','N4'],'req','R4 intent','R4')],
+        [...back(['N2','N4'],'N5','ok','ack','R4')], [M('N5','N2','ok','intent ok')]],
+  fork:{q:'Do all the keys live in one range?', opts:[
+    {tag:'y', label:'Yes: one Raft write, done (fast path)', go:'w1'},
+    {tag:'n', label:'No: need a transaction protocol on top', go:'t1', here:true}]},
+  title:'One transaction, two ranges.',
+  text:`<p>The transaction writes “cat” (R1) and “tea” (R4). Raft makes writes atomic <b>within</b> one group only. Two groups need something more.</p>
+  <p>CockroachDB’s approach: write provisional <b>intents</b> through each range’s own Raft, and keep one <b>transaction record</b> in the first key’s range (R1).</p>`},
+ {id:'t2', ch:'txn', state:T2,
+  msgs:[fan('N2',['N1','N4'],'req','R1 rec=COMMITTED','R1'), back(['N1','N4'],'N2','ok','ack','R1'), [M('N2','C','ok','committed'), M('N2','N5','req','resolve tea','R4')]],
+  title:'Commit is one Raft write in one range.',
+  text:`<p>Flipping the record to <span class="mono">COMMITTED</span> is a single write in R1. Once that commits, the whole transaction is committed.</p>
+  <p>Intents get cleaned up afterwards, asynchronously. TiKV uses a similar idea (Percolator, with a primary key holding the commit status).</p>
+  <p><b>Summary:</b> many independent Raft groups, routed by key, sharing node-level plumbing, split and moved as load changes.</p>`}
+];
+steps.forEach((s,i) => s.i = i);
+const byId = Object.fromEntries(steps.map(s => [s.id, s]));
+
+// ---------- derived status ----------
+function status(st, r){
+  const rep = st.rep[r], alive = rep.filter(n => !st.down.includes(n));
+  if (alive.length*2 <= rep.length) return ['no quorum','bad'];
+  const ld = st.lead[r];
+  if (!ld || st.down.includes(ld)) return ['electing','warn'];
+  if (alive.length < rep.length) return ['under-replicated','warn'];
+  if (st.learn[r]) return ['adding '+st.learn[r].join(','),'warn'];
+  if (st.quiet.includes(r)) return ['quiet','ok'];
+  return ['ok','ok'];
+}
+
+// ---------- rendering ----------
+function drawStage(st){
+  let k = '';
+  for (const r of st.ranges){
+    const x1 = kx(r.lo), x2 = kx(r.hi), c = rcolor(r.id);
+    k += `<rect x="${x1+1}" y="20" width="${x2-x1-2}" height="34" rx="4" fill="${c}" fill-opacity="0.16" stroke="${c}" stroke-width="1.5"/>`;
+    k += `<rect x="${x1+1}" y="49" width="${(x2-x1-2)*r.fill}" height="5" rx="2" fill="${c}"/>`;
+    k += `<text class="ks" x="${(x1+x2)/2}" y="41" text-anchor="middle">${r.id} ${letter(r.lo)}–${letter(r.hi)}</text>`;
+  }
+  for (const m of st.marks){
+    const x = kx(m.k + 0.5), c = m.ok ? 'var(--ok)' : 'var(--warn)';
+    k += `<path d="M${x-5} 66 L${x} 58 L${x+5} 66 z" fill="${c}"/>`;
+    k += `<text class="ks" x="${x}" y="80" text-anchor="middle" fill="${c}" style="fill:${c}">${m.l}${m.ok?'':' (intent)'}</text>`;
+  }
+  k += `<rect x="${CLIENT[0]-45}" y="${CLIENT[1]-14}" width="90" height="28" rx="6" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.5"/>
+        <text x="${CLIENT[0]}" y="${CLIENT[1]+5}" text-anchor="middle" class="ns" style="fill:var(--ink);font-weight:600">Client</text>`;
+  $('#g-ks').innerHTML = k;
+
+  let n = '';
+  for (const id of NODES){
+    const x = NX[id], down = st.down.includes(id), hot = st.hot.includes(id);
+    n += `<rect x="${x}" y="${NY}" width="${NW}" height="${NH}" rx="9" fill="${down?'var(--dead)':'var(--panel)'}" fill-opacity="${down?0.5:1}" stroke="${hot?'var(--warn)':'var(--line)'}" stroke-width="${hot?3:1.5}" ${down?'stroke-dasharray="6 5"':''}/>`;
+    n += `<text class="nh" x="${x+10}" y="${NY+22}">${id}</text>`;
+    n += `<text class="ns" x="${x+NW-10}" y="${NY+22}" text-anchor="end" style="${down?'fill:var(--no);font-weight:600':hot?'fill:var(--warn);font-weight:600':''}">${down?'down':hot?'busy':''}</text>`;
+    const mine = st.ranges.map(r => r.id).filter(r => st.rep[r].includes(id) || (st.learn[r]||[]).includes(id));
+    mine.forEach((r, i) => {
+      const y = NY + 34 + i*37, c = rcolor(r);
+      const lead = st.lead[r] === id && !down;
+      const learner = (st.learn[r]||[]).includes(id);
+      const quiet = st.quiet.includes(r);
+      const noq = status(st, r)[1] === 'bad';
+      const op = down ? 0.35 : quiet ? 0.45 : 1;
+      if (lead) n += `<rect x="${x+6}" y="${y}" width="${NW-12}" height="31" rx="5" fill="${c}" opacity="${op}"/>`;
+      else n += `<rect x="${x+7}" y="${y+1}" width="${NW-14}" height="29" rx="5" fill="var(--panel)" stroke="${noq&&!down?'var(--no)':c}" stroke-width="2" ${learner?'stroke-dasharray="5 4"':''} opacity="${op}"/>`;
+      const tc = lead ? '#fff' : 'var(--ink)';
+      const span = st.ranges.find(q => q.id === r);
+      const tag = lead ? ' ★' : learner ? ' learner' : quiet ? ' zz' : noq && !down ? ' ⚠' : '';
+      n += `<text class="ct" x="${x+14}" y="${y+20}" style="fill:${tc}" opacity="${op}">${r}${tag}</text>`;
+      if (!learner) n += `<text class="cs" x="${x+NW-12}" y="${y+20}" text-anchor="end" style="fill:${tc}" opacity="${op*0.85}">${letter(span.lo)}–${letter(span.hi)}</text>`;
+    });
+  }
+  $('#g-nodes').innerHTML = n;
+}
+
+function drawTable(st){
+  let h = `<table><thead><tr><th>Range</th><th>Keys</th><th>Replicas</th><th>Leader</th><th>Status</th></tr></thead><tbody>`;
+  for (const r of st.ranges){
+    const [s, cls] = status(st, r.id);
+    const reps = st.rep[r.id].map(n => st.down.includes(n) ? `<s>${n}</s>` : n).join(' ');
+    const ld = st.lead[r.id] && !st.down.includes(st.lead[r.id]) ? st.lead[r.id] : '–';
+    h += `<tr><td><span class="sw" style="background:${rcolor(r.id)}"></span>${r.id}</td><td class="mono">${letter(r.lo)}–${letter(r.hi)}</td><td class="mono">${reps}</td><td class="mono">${ld}</td><td class="st-${cls}">${s}</td></tr>`;
+  }
+  $('#table').innerHTML = h + '</tbody></table>';
+}
+
+function renderText(st){
+  const ch = CH.find(c => c.id === st.ch);
+  $('#chap').textContent = ch.title;
+  $('#chap').className = 'chap' + (ch.branchOf ? ' br' : '');
+  $('#title').textContent = st.title;
+  $('#text').innerHTML = st.text;
+  $('#count').textContent = `Step ${st.i+1} of ${steps.length}`;
+  const f = st.fork;
+  $('#fork').innerHTML = !f ? '' : `<div class="forkbox"><div class="q">Branch point: ${f.q}</div><div class="opts">${
+    f.opts.map(o => `<button class="opt ${o.here?'here':''}" data-go="${o.go}"><span class="tag ${o.tag}">${o.tag==='y'?'Yes':'No'}</span>${o.label.replace(/^(Yes|No): /,'')}${o.here?' (shown here)':''}</button>`).join('')
+  }</div></div>`;
+}
+
+function renderMap(){
+  const esc = s => s.replace(/"/g,'&quot;');
+  const dots = ch => steps.filter(s => s.ch === ch).map(s =>
+    `<button class="dot ${s.i===cur?'cur':''} ${s.i<cur?'seen':''}" data-i="${s.i}" title="${esc(s.title)}" aria-label="Step ${s.i+1}: ${esc(s.title)}"></button>`).join('');
+  $('#map').innerHTML = CH.filter(c => !c.branchOf).map(c => {
+    const br = CH.filter(b => b.branchOf === c.id);
+    return `<div class="mcol"><div class="mtitle">${c.title}</div><div class="dots">${dots(c.id)}</div>${
+      br.map(b => `<div class="branch"><div class="fork">↳ ${b.fork}</div><div class="mtitle">${b.title}</div><div class="dots">${dots(b.id)}</div></div>`).join('')
+    }</div>`;
+  }).join('');
+}
+
+// ---------- animation ----------
+let cur = 0, runId = 0, autoTimer = null, autoOn = false;
+const SPEED = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.4 : 1;
+
+function anchor(id){ return id === 'C' ? [CLIENT[0], CLIENT[1]+14] : [NX[id] + NW/2, NY]; }
+function pathPoint(m, t){
+  const [ax,ay] = id0(m.f, true), [bx,by] = id0(m.to, false);
+  if (m.f === 'C' || m.to === 'C') return [ax+(bx-ax)*t, ay+(by-ay)*t];
+  const cx = (ax+bx)/2, cy = NY - 30 - Math.abs(bx-ax)*0.33;
+  const u = 1-t;
+  return [u*u*ax + 2*u*t*cx + t*t*bx, u*u*ay + 2*u*t*cy + t*t*by];
+}
+function id0(id, from){
+  if (id === 'C') return from ? [CLIENT[0], CLIENT[1]+14] : [CLIENT[0], CLIENT[1]+14];
+  return anchor(id);
+}
+
+function anim(ms, id, onFrame, done){
+  const t0 = performance.now();
+  const f = now => {
+    if (id !== runId) return;
+    const p = Math.min(1, (now - t0)/ms);
+    onFrame(p);
+    if (p < 1) requestAnimationFrame(f); else done();
+  };
+  requestAnimationFrame(f);
+}
+
+function runWaves(waves, st, prev, id, done){
+  let w = 0;
+  const g = $('#g-msgs');
+  const isDown = n => n !== 'C' && (st.down.includes(n) || prev.down.includes(n));
+  const next = () => {
+    if (id !== runId) return;
+    g.innerHTML = '';
+    if (w >= waves.length) return done();
+    const els = waves[w++].map(m => {
+      const lost = m.k === 'lost' || isDown(m.to) || isDown(m.f);
+      const color = lost ? 'var(--lost)' : m.k === 'ok' ? 'var(--ok)' : m.k === 'no' ? 'var(--no)' : m.k === 'co' ? 'var(--accent)' : m.r ? rcolor(m.r) : 'var(--accent)';
+      const r = m.k === 'hb' ? 5 : m.k === 'snap' ? 9 : 7;
+      const el = document.createElementNS('http://www.w3.org/2000/svg','g');
+      el.innerHTML = `<circle r="${r}" fill="${color}"/><text class="mlabel" x="${r+3}" y="-7" style="fill:${color}">${m.l}</text><text class="x" x="-6" y="6" font-size="20" font-weight="700" fill="var(--no)" opacity="0">✕</text>`;
+      g.appendChild(el);
+      return {m, el, lost};
+    });
+    anim(1050*SPEED, id, p => {
+      for (const e of els){
+        const q = e.lost ? Math.min(p, 0.5) : p;
+        const ease = q < .5 ? 2*q*q : 1 - Math.pow(-2*q+2, 2)/2;
+        const [x,y] = pathPoint(e.m, ease);
+        e.el.setAttribute('transform', `translate(${x},${y})`);
+        if (e.lost && p > 0.5){
+          e.el.querySelector('.x').setAttribute('opacity', 1);
+          e.el.querySelector('circle').setAttribute('opacity', 1 - (p-0.5)*2);
+        }
+      }
+    }, () => setTimeout(next, 120*SPEED));
+  };
+  next();
+}
+
+function prevStateOf(st){
+  if (st.from) return st.from;
+  const p = steps[st.i - 1];
+  return p && p.ch === st.ch ? p.state : st.state;
+}
+
+function show(i){
+  clearTimeout(autoTimer);
+  const id = ++runId;
+  cur = Math.max(0, Math.min(steps.length - 1, i));
+  const st = steps[cur], prev = prevStateOf(st);
+  renderText(st); renderMap();
+  $('#prev').disabled = cur === 0;
+  $('#next').disabled = cur === steps.length - 1;
+  $('#g-msgs').innerHTML = '';
+  drawStage(prev); drawTable(prev);
+  runWaves(st.msgs || [], st.state, prev, id, () => {
+    if (id !== runId) return;
+    drawStage(st.state); drawTable(st.state);
+    if (autoOn && cur < steps.length - 1) autoTimer = setTimeout(() => show(cur + 1), 3800);
+  });
+}
+
+$('#next').onclick = () => show(cur + 1);
+$('#prev').onclick = () => show(cur - 1);
+$('#replay').onclick = () => show(cur);
+$('#auto').onclick = () => {
+  autoOn = !autoOn;
+  $('#auto').setAttribute('aria-pressed', autoOn);
+  if (autoOn) show(cur); else clearTimeout(autoTimer);
+};
+$('#map').addEventListener('click', e => { const b = e.target.closest('.dot'); if (b) show(+b.dataset.i); });
+$('#fork').addEventListener('click', e => { const b = e.target.closest('.opt'); if (b) show(byId[b.dataset.go].i); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') show(cur + 1);
+  if (e.key === 'ArrowLeft') show(cur - 1);
+});
+show(0);
+</script>
+</body>
+</html>
